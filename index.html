@@ -1,0 +1,2017 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>Слияние и перебазирование в Git</title>
+<script>
+/* Тема ставится ДО первой отрисовки: без мигания светлой темы */
+(function(){var d=document.documentElement;d.classList.add('preload');try{var t=localStorage.getItem('gitlec-theme');if(t==='light'||t==='dark'){d.setAttribute('data-theme',t);}}catch(e){}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap">
+<style>
+:root{
+  --f-display:"Unbounded","Segoe UI",system-ui,sans-serif;
+  --f-body:"Onest","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  --f-mono:"JetBrains Mono","Cascadia Mono",Consolas,"Liberation Mono",monospace;
+  --bg:#F2F4F8; --surface:#FFFFFF; --surface-2:#F6F7FA; --surface-3:#EBEEF4;
+  --ink:#111521; --ink-2:#353C4F; --muted:#626A7F; --line:#DFE3EB; --line-2:#C7CDD9;
+  --dot:rgba(30,44,80,.14);
+  --c-main:#2E63F2; --c-feat:#0E9F68; --c-alt:#0891B2; --c-head:#EB6519; --c-ref:#D3364F; --c-ghost:#9AA2B3;
+  --code-bg:#ECEFF5;
+  --shadow:0 1px 2px rgba(17,24,39,.04),0 14px 34px -18px rgba(17,24,39,.24);
+  --shadow-lg:0 2px 6px rgba(17,24,39,.05),0 34px 70px -34px rgba(17,24,39,.38);
+  --bulb-glass:#FFD54A; --bulb-stroke:#B87C05; --bulb-fil:#9A4A06; --bulb-glow:1; --bulb-rays:1; --bulb-base:#8A93A6;
+  --ease:cubic-bezier(.22,.8,.26,1); --ease-back:cubic-bezier(.34,1.56,.64,1);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A0D13; --surface:#11161F; --surface-2:#151B26; --surface-3:#1C2331;
+    --ink:#E8EBF2; --ink-2:#C3C9D6; --muted:#8B94A8; --line:#222938; --line-2:#343C4E;
+    --dot:rgba(170,185,220,.11);
+    --c-main:#6A95FF; --c-feat:#34CF90; --c-alt:#2CC3DE; --c-head:#FF8B42; --c-ref:#F45B74; --c-ghost:#5B6477;
+    --code-bg:#1A2130;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -22px rgba(0,0,0,.8);
+    --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 40px 80px -40px rgba(0,0,0,.9);
+    --bulb-glass:rgba(255,255,255,.02); --bulb-stroke:#7D8699; --bulb-fil:#5E6679; --bulb-glow:0; --bulb-rays:0; --bulb-base:#6B7386;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A0D13; --surface:#11161F; --surface-2:#151B26; --surface-3:#1C2331;
+  --ink:#E8EBF2; --ink-2:#C3C9D6; --muted:#8B94A8; --line:#222938; --line-2:#343C4E;
+  --dot:rgba(170,185,220,.11);
+  --c-main:#6A95FF; --c-feat:#34CF90; --c-alt:#2CC3DE; --c-head:#FF8B42; --c-ref:#F45B74; --c-ghost:#5B6477;
+  --code-bg:#1A2130;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 18px 40px -22px rgba(0,0,0,.8);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 40px 80px -40px rgba(0,0,0,.9);
+  --bulb-glass:rgba(255,255,255,.02); --bulb-stroke:#7D8699; --bulb-fil:#5E6679; --bulb-glow:0; --bulb-rays:0; --bulb-base:#6B7386;
+  color-scheme:dark;
+}
+
+/* ---------- base ---------- */
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px;-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 17px/1.7 var(--f-body);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+html.preload *,html.preload *::before,html.preload *::after{transition:none!important;animation:none!important}
+::selection{background:color-mix(in srgb,var(--c-head) 28%,transparent)}
+a{color:var(--c-main);text-underline-offset:3px;text-decoration-thickness:1px}
+a:hover{text-decoration-thickness:2px}
+img,svg{max-width:100%}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2.5px solid var(--c-head);outline-offset:3px;border-radius:6px}
+b,strong{font-weight:650}
+code,kbd{font-family:var(--f-mono)}
+p code,li code,td code,th code,.note code,.dtext code,dd code{font-size:.86em;font-weight:500;background:var(--code-bg);border:1px solid var(--line);padding:.08em .38em;border-radius:6px;overflow-wrap:anywhere;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+td code,th code{white-space:nowrap}
+kbd{font-size:.8em;font-weight:600;background:var(--surface);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:5px;padding:.05em .38em}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- progress + header ---------- */
+.progress{position:fixed;left:0;top:0;height:3px;width:100%;z-index:80;transform-origin:0 50%;transform:scaleX(0);background:linear-gradient(90deg,var(--c-main),var(--c-feat) 55%,var(--c-head));pointer-events:none}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:60;background:var(--bg);background:color-mix(in srgb,var(--bg) 84%,transparent);-webkit-backdrop-filter:saturate(1.5) blur(14px);backdrop-filter:saturate(1.5) blur(14px);border-bottom:1px solid var(--line)}
+.topbar-in{max-width:1260px;margin:0 auto;padding-inline:20px;height:62px;display:flex;align-items:center;gap:14px}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none;color:var(--ink);min-width:0}
+.brand-mark{width:34px;height:34px;flex:none;border-radius:10px;background:var(--surface);border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow)}
+.brand-t{display:flex;flex-direction:column;line-height:1.15;min-width:0}
+.brand-t b{font:600 13.5px/1.2 var(--f-display);letter-spacing:.01em;white-space:nowrap}
+.brand-t span{font:500 11.5px/1.2 var(--f-mono);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar-sp{flex:1}
+.toc-btn{display:none;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;font-size:14px}
+.toc-btn svg{width:18px;height:18px}
+
+/* theme control */
+.theme-ctl{display:flex;align-items:center;gap:4px;padding:4px;border-radius:14px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow)}
+.bulb{position:relative;width:40px;height:40px;border-radius:10px;border:0;background:transparent;cursor:pointer;display:grid;place-items:center;padding:0}
+.bulb:hover{background:var(--surface-3)}
+.bulb svg{width:32px;height:32px;overflow:visible;transform-origin:50% 8%}
+.bulb .b-glow{opacity:var(--bulb-glow);transition:opacity .5s ease}
+.bulb .b-rays{opacity:var(--bulb-rays);transform:scale(calc(.6 + .4 * var(--bulb-rays)));transform-origin:16px 13px;transition:opacity .45s ease,transform .5s var(--ease-back)}
+.bulb .b-rays line{stroke:#F5B416;stroke-width:1.7;stroke-linecap:round}
+.bulb .b-glass{fill:var(--bulb-glass);stroke:var(--bulb-stroke);stroke-width:1.5;transition:fill .45s ease,stroke .45s ease}
+.bulb .b-fil{fill:none;stroke:var(--bulb-fil);stroke-width:1.3;stroke-linecap:round;stroke-linejoin:round;transition:stroke .45s ease}
+.bulb .b-base{fill:none;stroke:var(--bulb-base);stroke-width:1.6;stroke-linecap:round}
+.bulb:hover svg{animation:sway 1.1s var(--ease)}
+.bulb.on-anim svg{animation:swing .9s var(--ease)}
+.bulb.on-anim .b-glow,.bulb.on-anim .b-glass{animation:flicker .75s linear}
+.bulb.off-anim svg{animation:swing .9s var(--ease)}
+.bulb.off-anim .b-fil{animation:cool .9s ease}
+@keyframes flicker{0%{opacity:.15}9%{opacity:1}16%{opacity:.3}26%{opacity:1}34%{opacity:.55}46%,100%{opacity:1}}
+@keyframes cool{0%{stroke:#FF7A1A}100%{stroke:var(--bulb-fil)}}
+@keyframes swing{0%{transform:rotate(0)}20%{transform:rotate(-14deg)}45%{transform:rotate(9deg)}70%{transform:rotate(-4deg)}100%{transform:rotate(0)}}
+@keyframes sway{0%,100%{transform:rotate(0)}35%{transform:rotate(-6deg)}70%{transform:rotate(3deg)}}
+.auto{height:40px;padding:0 12px;border-radius:10px;border:0;background:transparent;cursor:pointer;display:flex;align-items:center;gap:7px;font:600 13px/1 var(--f-body);color:var(--muted)}
+.auto svg{width:17px;height:17px}
+.auto:hover{background:var(--surface-3);color:var(--ink)}
+.auto[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+::view-transition-old(root),::view-transition-new(root){animation:none;mix-blend-mode:normal}
+::view-transition-new(root){z-index:2}
+
+/* ---------- hero ---------- */
+.hero{position:relative;border-bottom:1px solid var(--line);overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background-image:radial-gradient(var(--dot) 1.1px,transparent 1.3px);background-size:22px 22px;-webkit-mask-image:linear-gradient(180deg,#000 20%,transparent 95%);mask-image:linear-gradient(180deg,#000 20%,transparent 95%);pointer-events:none}
+.hero-in{position:relative;max-width:1260px;margin:0 auto;padding:56px 20px 60px;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:52px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;font:600 12px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--c-head);box-shadow:0 0 0 4px color-mix(in srgb,var(--c-head) 22%,transparent)}
+h1{font:600 clamp(28px,4.6vw,50px)/1.08 var(--f-display);letter-spacing:-.02em;margin:18px 0 18px;text-wrap:balance}
+h1 .h1-2{display:block;color:var(--muted)}
+.hero-sub{font-size:19px;line-height:1.6;color:var(--ink-2);max-width:34em;margin:0 0 24px}
+.hero-sub .mk{font:600 .88em var(--f-mono);padding:.05em .45em;border-radius:7px;white-space:nowrap}
+.mk-m{color:var(--c-main);background:color-mix(in srgb,var(--c-main) 12%,transparent)}
+.mk-f{color:var(--c-feat);background:color-mix(in srgb,var(--c-feat) 13%,transparent)}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.hero-meta li{display:flex;align-items:center;gap:8px;font:500 13.5px/1 var(--f-body);color:var(--ink-2);background:var(--surface);border:1px solid var(--line);padding:9px 12px;border-radius:999px}
+.hero-meta svg{width:16px;height:16px;color:var(--muted)}
+.hero-card{background:var(--surface);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow-lg);overflow:hidden}
+.hero-card-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);font:600 12px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.hero-dots{display:flex;gap:6px}
+.hero-dots span{width:7px;height:7px;border-radius:50%;background:var(--line-2);transition:background .3s,transform .3s}
+.hero-dots span.on{background:var(--c-head);transform:scale(1.25)}
+.hero-graph{padding:10px 14px 4px}
+.hero-graph svg{display:block;width:100%;height:auto}
+.hero-cmd{display:flex;align-items:center;gap:10px;margin:0 14px 14px;padding:12px 14px;border-radius:12px;background:#0C0F14;color:#E6E9EF;font:500 14px/1.3 var(--f-mono);min-height:44px;overflow:hidden;white-space:nowrap}
+.hero-cmd .ps{color:#16C60C}
+.hero-cmd .caret{width:8px;height:17px;background:#E6E9EF;animation:blink 1s steps(1) infinite;flex:none}
+@keyframes blink{50%{opacity:0}}
+
+/* ---------- layout ---------- */
+.shell{max-width:1260px;margin:0 auto;padding-inline:20px;padding-block:28px 60px;display:grid;grid-template-columns:232px minmax(0,1fr);gap:56px}
+.side{position:sticky;top:calc(env(safe-area-inset-top,0px) + 84px);align-self:start;max-height:calc(100vh - 110px);overflow:auto;padding:8px 4px 20px 2px}
+main{min-width:0;max-width:900px}
+@media (max-width:1080px){.shell{grid-template-columns:minmax(0,1fr)}.side{display:none}.toc-btn{display:inline-flex}}
+
+/* TOC as a git graph */
+.toc-title{font:600 11.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:6px 0 16px 2px}
+.toc-list{position:relative;list-style:none;margin:0;padding:0}
+.toc-list::before{content:"";position:absolute;left:6px;top:12px;bottom:12px;width:2px;border-radius:2px;background:var(--line)}
+.toc-prog{position:absolute;left:6px;top:12px;width:2px;height:0;border-radius:2px;background:linear-gradient(var(--c-main),var(--c-head));transition:height .45s var(--ease)}
+.toc-ring{position:absolute;left:-2px;top:0;width:18px;height:18px;border-radius:50%;border:2.5px solid var(--c-head);background:var(--bg);box-shadow:0 0 0 5px color-mix(in srgb,var(--c-head) 16%,transparent);transition:transform .45s var(--ease);opacity:0}
+.toc-ring.on{opacity:1}
+.toc-list a{position:relative;display:grid;grid-template-columns:24px auto 1fr;align-items:center;column-gap:6px;padding:6px 6px 6px 0;text-decoration:none;color:var(--muted);font-size:14.5px;line-height:1.35;border-radius:8px}
+.toc-list a:hover{color:var(--ink)}
+.toc-dot{justify-self:start;margin-left:2px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--line-2);transition:background .3s,border-color .3s}
+.toc-list a.done .toc-dot{background:var(--c-main);border-color:var(--c-main)}
+.toc-n{font:600 11.5px/1 var(--f-mono);color:var(--muted);opacity:.8}
+.toc-t{min-width:0}
+.toc-list a.is-active{color:var(--ink);font-weight:600}
+.toc-list a.is-active .toc-dot{opacity:0}
+.toc-list a.is-active .toc-t::after{content:"HEAD";display:inline-block;margin-left:8px;padding:2px 6px 1px;border-radius:5px;background:var(--c-head);color:#fff;font:700 9.5px/1.3 var(--f-mono);letter-spacing:.06em;vertical-align:2px}
+
+/* drawer */
+.drawer{position:fixed;inset:0;z-index:90;display:none}
+.drawer.open{display:block}
+.drawer-bg{position:absolute;inset:0;background:rgba(5,8,14,.5);animation:fade .25s ease}
+.drawer-panel{position:absolute;right:0;top:0;bottom:0;width:min(360px,88vw);background:var(--bg);border-left:1px solid var(--line);padding:calc(env(safe-area-inset-top,0px) + 18px) 20px 24px;overflow:auto;animation:slide .32s var(--ease)}
+.drawer-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;cursor:pointer}
+.icon-btn svg{width:18px;height:18px}
+@keyframes fade{from{opacity:0}}
+@keyframes slide{from{transform:translateX(40px);opacity:0}}
+
+/* ---------- sections & type ---------- */
+.sec{padding-block:44px 18px;border-top:1px solid var(--line);scroll-margin-top:76px}
+.sec:first-child{border-top:0;padding-top:18px}
+.sec-h{margin-bottom:22px}
+.sec-n{display:inline-flex;align-items:center;gap:10px;font:600 12.5px/1 var(--f-mono);letter-spacing:.1em;color:var(--muted);margin-bottom:14px}
+.sec-n i{width:11px;height:11px;border-radius:50%;background:var(--c-main);box-shadow:0 0 0 4px color-mix(in srgb,var(--c-main) 18%,transparent)}
+h2{font:600 clamp(23px,2.9vw,31px)/1.2 var(--f-display);letter-spacing:-.015em;margin:0;text-wrap:balance}
+h3{font:650 21px/1.3 var(--f-body);letter-spacing:-.005em;margin:38px 0 12px;text-wrap:balance}
+h4{font:650 17px/1.4 var(--f-body);margin:26px 0 8px}
+.prose p,.prose ul,.prose ol,.prose dl{max-width:68ch}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 16px;padding-left:1.3em}
+li{margin:5px 0}
+li::marker{color:var(--muted)}
+.lead{font-size:19.5px;line-height:1.6;color:var(--ink-2)}
+.muted{color:var(--muted)}
+
+/* callouts */
+.note{--tone:var(--c-main);display:grid;grid-template-columns:38px minmax(0,1fr);gap:14px;padding:16px 18px;margin:22px 0;border-radius:16px;background:color-mix(in srgb,var(--tone) 7%,var(--surface));border:1px solid color-mix(in srgb,var(--tone) 24%,var(--line))}
+.note-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:var(--tone);background:color-mix(in srgb,var(--tone) 15%,transparent)}
+.note-ic svg{width:20px;height:20px}
+.note-k{font:700 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--tone);margin:3px 0 7px}
+.note p:last-child,.note ol:last-child,.note ul:last-child{margin-bottom:0}
+.note.rule{--tone:var(--c-head)} .note.warn{--tone:var(--c-ref)} .note.tip{--tone:var(--c-feat)} .note.curious{--tone:var(--c-alt)} .note.analogy{--tone:var(--c-main)}
+
+/* the big rule */
+.big-rule{position:relative;margin:4px 0 28px;padding:28px 28px 26px;border-radius:22px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden}
+.big-rule::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c-head) 22%,transparent),transparent 70%);pointer-events:none}
+.big-rule .tag{display:inline-flex;align-items:center;gap:8px;font:700 11px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:#fff;background:var(--c-head);padding:6px 10px;border-radius:7px}
+.big-rule p.st{position:relative;font:600 clamp(20px,2.6vw,27px)/1.35 var(--f-display);letter-spacing:-.01em;margin:16px 0 10px;text-wrap:balance}
+.big-rule p.st em{font-style:normal;color:var(--c-head)}
+.ritual{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:18px;position:relative}
+.ritual div{padding:14px 16px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line)}
+.ritual b{display:flex;align-items:center;gap:10px;font-weight:650;margin-bottom:6px}
+.ritual b span{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font:700 12.5px/1 var(--f-mono);background:var(--ink);color:var(--bg)}
+.ritual code{font-size:14px}
+.pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:22px 0}
+.pcard{padding:20px;border-radius:18px;border:1px solid var(--line);background:var(--surface);display:grid;grid-template-columns:52px 1fr;gap:14px;align-items:start}
+.pcard .pi{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;color:var(--tone);background:color-mix(in srgb,var(--tone) 13%,transparent)}
+.pcard .pi svg{width:28px;height:28px}
+.pcard h4{margin:2px 0 4px;font-size:18px}
+.pcard p{margin:0;font-size:15.5px;line-height:1.55;color:var(--ink-2)}
+.pcard code{font-size:13.5px}
+
+/* tables */
+.tbl{overflow-x:auto;margin:18px 0 22px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+.tbl table{width:100%;border-collapse:collapse;font-size:15.5px;line-height:1.5}
+.tbl th,.tbl td{padding:12px 16px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+.tbl tr:last-child td{border-bottom:0}
+.tbl th{font:600 12px/1.3 var(--f-mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted);background:var(--surface-2)}
+.tbl td:first-child{font-weight:550}
+.tbl.cmp td:first-child{color:var(--muted);font-weight:500;font-size:14.5px}
+.tbl.cmp th:nth-child(2){color:var(--c-main)} .tbl.cmp th:nth-child(3){color:var(--c-feat)}
+
+/* numbered steps */
+ol.steps{list-style:none;padding:0;counter-reset:st;max-width:none}
+ol.steps>li{counter-increment:st;position:relative;padding:4px 0 4px 46px;margin:12px 0}
+ol.steps>li::before{content:counter(st);position:absolute;left:0;top:2px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 13px/1 var(--f-mono);background:var(--surface);border:1.5px solid var(--line-2);color:var(--ink)}
+ol.steps>li>ul{margin-top:6px}
+
+/* ---------- diagram figures ---------- */
+.dfig{margin:26px 0 30px;border:1px solid var(--line);border-radius:22px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+.dfig-panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.dfig-panels.wide-r{grid-template-columns:minmax(0,4fr) minmax(0,8fr)}
+.dpanel{padding:14px 16px 10px;min-width:0;display:flex;flex-direction:column}
+.dpanel+.dpanel{border-left:1px solid var(--line)}
+.dpanel-h{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;margin-bottom:6px}
+.dpanel-h b{display:inline-flex;align-items:center;gap:8px;font:700 11.5px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+.dpanel-h b i{width:8px;height:8px;border-radius:50%;background:var(--c-main)}
+.dpanel:nth-child(2) .dpanel-h b i{background:var(--c-ref);border-radius:2px}
+.dpanel-h span{font-size:12.5px;color:var(--muted)}
+.dpanel-body{flex:1;display:flex;align-items:center;justify-content:center;min-height:120px}
+.dpanel-body svg{display:block;width:100%;height:auto;max-height:320px}
+.dpanel-body.scroll{overflow-x:auto;justify-content:flex-start}
+.dpanel-body.scroll svg{max-height:none}
+@media (max-width:760px){.dpanel-body.scroll svg{min-width:560px}}
+.dfig-foot{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 18px;align-items:center;padding:14px 16px;border-top:1px solid var(--line);background:var(--surface-2)}
+.dsteps{display:flex;flex-wrap:wrap;gap:6px}
+.dstep{min-width:34px;height:34px;padding:0 10px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font:600 13px/1 var(--f-mono);color:var(--muted);transition:background .25s,color .25s,border-color .25s}
+.dstep:hover{color:var(--ink);border-color:var(--muted)}
+.dstep[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.dinfo{min-width:0}
+.dcmd{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.chip-cmd{display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border-radius:9px;background:#0C0F14;color:#EEF0F4;font:500 13.5px/1.2 var(--f-mono);max-width:100%;overflow-x:auto;white-space:nowrap}
+.chip-cmd i{font-style:normal;color:#16C60C}
+.chip-cmd.empty{background:transparent;color:var(--muted);border:1px dashed var(--line-2)}
+.dtext{margin:0;font-size:15px;line-height:1.55;color:var(--ink-2);min-height:3.1em;transition:opacity .25s}
+.dtext.swap{opacity:.25}
+.dnav{display:flex;gap:6px}
+.dbtn{width:38px;height:38px;border-radius:11px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;display:grid;place-items:center;color:var(--ink)}
+.dbtn:hover:not(:disabled){border-color:var(--ink)}
+.dbtn:disabled{opacity:.35;cursor:default}
+.dbtn svg{width:18px;height:18px}
+.dbtn.play{background:var(--c-head);border-color:var(--c-head);color:#fff}
+.dfig-cap{padding:0 16px 14px;margin-top:-4px;font-size:14px;color:var(--muted)}
+@media (max-width:760px){
+  .dfig-panels,.dfig-panels.wide-r{grid-template-columns:minmax(0,1fr)}
+  .dpanel+.dpanel{border-left:0;border-top:1px solid var(--line)}
+  .dfig-foot{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"steps nav" "info info"}
+  .dsteps{grid-area:steps}.dnav{grid-area:nav}.dinfo{grid-area:info}
+  .dstep{min-width:32px;height:32px;padding:0 8px;font-size:12.5px}
+  .dsteps{gap:5px}
+  .dbtn{width:36px;height:36px}
+  .dpanel-body svg{max-height:260px}
+}
+
+/* legend */
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 18px;margin:18px 0 6px;padding:16px 18px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.legend div{display:flex;align-items:center;gap:10px;font-size:14.5px;line-height:1.35;color:var(--ink-2)}
+.legend svg{flex:none;width:34px;height:22px}
+
+/* svg: git graph */
+.k-m{--k:var(--c-main)} .k-f{--k:var(--c-feat)} .k-a{--k:var(--c-alt)}
+.gg-guide{stroke:var(--k);stroke-opacity:.2;stroke-width:1.5;stroke-dasharray:2 5}
+.gg-pill{fill:color-mix(in srgb,var(--k) 13%,var(--surface));stroke:var(--k);stroke-width:1.4}
+.gg-pilltxt{fill:var(--k);font:700 11.5px var(--f-mono);text-anchor:middle}
+.gg-lane,.gg-node,.gg-head,.pp-node,.pp-ref,.pp-head{transition:transform .65s var(--ease),opacity .35s ease}
+.gg-edge{fill:none;stroke:var(--k);stroke-width:3.4;stroke-linecap:round;transition:d .65s var(--ease),opacity .35s ease,stroke .3s}
+.gg-edge.s-ghost,.gg-edge.s-lift{stroke:var(--c-ghost);stroke-width:2;stroke-dasharray:3 6}
+.gg-edge.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw .6s var(--ease) forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.gg-node .dot{fill:var(--k);stroke:var(--surface);stroke-width:3.2;transition:fill .3s,stroke .3s}
+.gg-node .inner{fill:var(--surface);opacity:0}
+.gg-node.is-merge .inner{opacity:1}
+.gg-node.is-merge .dot{stroke-width:2.5}
+.gg-node .hl{fill:none;stroke:var(--c-head);stroke-width:2;stroke-dasharray:4 3;opacity:0}
+.gg-node.s-hl .hl{opacity:1;animation:spin 5s linear infinite;transform-box:fill-box;transform-origin:center}
+.gg-node .lbl{fill:var(--ink-2);font:600 11.5px var(--f-mono);text-anchor:middle}
+.gg-node.s-ghost .dot,.gg-node.s-lift .dot{fill:var(--surface);stroke:var(--c-ghost);stroke-width:2;stroke-dasharray:3 2.5}
+.gg-node.s-ghost .lbl,.gg-node.s-lift .lbl{fill:var(--c-ghost)}
+.gg-node.s-lift{opacity:.75}
+.gg-head .ring{fill:none;stroke:var(--c-head);stroke-width:2.6}
+.gg-head .tag{transition:transform .65s var(--ease)}
+.gg-head .tag rect{fill:var(--c-head)}
+.gg-head .tag text{fill:#fff;font:700 10px var(--f-mono);letter-spacing:.06em;text-anchor:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.out{opacity:0!important}
+.pop{animation:pop .55s var(--ease-back) both;transform-box:fill-box;transform-origin:center}
+@keyframes pop{from{transform:scale(.2);opacity:0}}
+
+/* svg: pointers ("стикеры") */
+.pp-edge{fill:none;stroke:var(--line-2);stroke-width:2.4;transition:d .65s var(--ease),opacity .35s}
+.pp-edge.s-ghost,.pp-edge.s-lift{stroke-dasharray:4 5;stroke:var(--c-ghost);stroke-width:1.6}
+.pp-node .box{fill:var(--k);transition:fill .3s,stroke .3s,opacity .3s}
+.pp-node .bt{fill:#fff;font:700 13.5px var(--f-mono);text-anchor:middle}
+.pp-node .hlr{fill:none;stroke:var(--c-head);stroke-width:2;stroke-dasharray:5 4;opacity:0}
+.pp-node.s-hl .hlr{opacity:1}
+.pp-node.s-ghost .box,.pp-node.s-lift .box{fill:transparent;stroke:var(--c-ghost);stroke-width:1.6;stroke-dasharray:4 3}
+.pp-node.s-ghost .bt,.pp-node.s-lift .bt{fill:var(--c-ghost)}
+.pp-ref .lab{fill:var(--c-ref)}
+.pp-head .lab{fill:var(--c-head)}
+.pp-ref .lt,.pp-head .lt{fill:#fff;font:600 12.5px var(--f-mono);text-anchor:middle}
+.pp-ref .arr,.pp-head .arr{stroke:var(--muted);stroke-width:1.6;fill:none}
+.pp-ref .ah,.pp-head .ah{fill:var(--muted)}
+
+/* word docs svg */
+.doc-paper{fill:var(--surface);stroke:var(--line-2);stroke-width:1.3}
+.doc-fold{fill:var(--surface-3);stroke:var(--line-2);stroke-width:1.3;stroke-linejoin:round}
+.doc-title{fill:var(--ink);font:700 14px var(--f-body)}
+.doc-p{fill:var(--muted);font:500 11.5px var(--f-mono)}
+.doc-lab{fill:var(--ink-2);font:700 14px var(--f-body)}
+.doc-lab.t-a{fill:var(--c-feat)} .doc-lab.t-b{fill:var(--c-alt)}
+.doc-hl{stroke-width:1.2}
+.hl-a{fill:color-mix(in srgb,var(--c-feat) 10%,transparent);stroke:color-mix(in srgb,var(--c-feat) 35%,transparent)}
+.hl-b{fill:color-mix(in srgb,var(--c-alt) 10%,transparent);stroke:color-mix(in srgb,var(--c-alt) 35%,transparent)}
+.hl-a.is-new{fill:color-mix(in srgb,var(--c-feat) 30%,transparent);stroke:var(--c-feat)}
+.hl-b.is-new{fill:color-mix(in srgb,var(--c-alt) 30%,transparent);stroke:var(--c-alt)}
+.doc-ln{stroke:var(--ink-2);stroke-opacity:.35;stroke-width:2;stroke-linecap:round}
+.doc-arrow{fill:none;stroke-width:2.2}
+.doc-arrow.a{stroke:var(--c-feat)} .doc-arrow.b{stroke:var(--c-alt)}
+.doc-ah.a{fill:var(--c-feat)} .doc-ah.b{fill:var(--c-alt)}
+
+/* ---------- terminal (Git Bash) ---------- */
+.term{margin:16px 0 20px;border-radius:14px;background:#0C0F14;border:1px solid #232834;overflow:hidden;box-shadow:var(--shadow);color:#CCD2DC}
+.term-bar{display:flex;align-items:center;gap:10px;height:36px;padding:0 6px 0 12px;background:#171B23;border-bottom:1px solid #232834;font:500 12px/1 var(--f-mono);color:#8C94A4}
+.term-ico{width:14px;height:14px;flex:none}
+.term-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.term-copy{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 9px;border-radius:7px;border:1px solid #2C3240;background:#1D222C;color:#C9CFDA;cursor:pointer;font:600 11.5px/1 var(--f-body)}
+.term-copy:hover{background:#262C38;color:#fff}
+.term-copy svg{width:13px;height:13px}
+.term-win{display:flex;gap:0;margin-left:2px}
+.term-win span{width:30px;height:24px;display:grid;place-items:center;color:#6F7787}
+.term-win svg{width:11px;height:11px}
+.term-body{margin:0;padding:14px 18px 16px;overflow-x:auto;font:400 13.5px/1.62 var(--f-mono);white-space:pre;tab-size:4}
+.term-src{margin:0;padding:14px 18px;white-space:pre;font:400 13.5px/1.6 var(--f-mono);overflow-x:auto}
+.t-u{color:#16C60C}.t-m{color:#C151D8}.t-p{color:#C9A227}.t-b{color:#3A9DE8}
+.t-cmd{color:#F4F6FA;font-weight:600}.t-com{color:#6D7586;font-style:italic}
+.t-err{color:#F25F5F}.t-warn{color:#D7B23B}.t-dim{color:#6D7586}
+.t-hash{color:#D0A91D}.t-hd{color:#5FD4E0;font-weight:700}.t-br{color:#27D07A;font-weight:700}.t-g1{color:#EE5A5A}.t-g2{color:#27D07A}.t-g3{color:#D7B23B}
+.term.mini .term-bar{height:32px}
+
+/* file editor */
+.file{margin:16px 0 20px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--surface)}
+.file-tab{display:flex;align-items:center;gap:10px;padding:9px 14px;background:var(--surface-2);border-bottom:1px solid var(--line);font:600 12.5px/1 var(--f-mono);color:var(--ink-2)}
+.file-tab .badge{font:700 10.5px/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:4px 7px;border-radius:6px;color:var(--c-ref);background:color-mix(in srgb,var(--c-ref) 13%,transparent)}
+.file-tab .badge.ok{color:var(--c-feat);background:color-mix(in srgb,var(--c-feat) 13%,transparent)}
+.file-body{padding:8px 0;font:500 14px/1.7 var(--f-mono);overflow-x:auto}
+.fl{display:grid;grid-template-columns:44px minmax(0,1fr) auto;align-items:center;padding-right:14px;white-space:pre;min-width:max-content}
+.fl .n{color:var(--muted);opacity:.6;text-align:right;padding-right:14px;font-size:12px}
+.fl .ann{font:600 11.5px/1.2 var(--f-body);padding:3px 8px;border-radius:6px;margin-left:16px;white-space:nowrap}
+.fl.mk{font-weight:700}
+.fl.z-cur{background:color-mix(in srgb,var(--c-main) 11%,transparent)}
+.fl.z-in{background:color-mix(in srgb,var(--c-feat) 12%,transparent)}
+.fl.mk.z-cur{color:var(--c-main)} .fl.mk.z-in{color:var(--c-feat)} .fl.mk.z-sep{color:var(--muted)}
+.fl.z-sep{background:var(--surface-3)}
+.ann.a-cur{color:var(--c-main);background:color-mix(in srgb,var(--c-main) 14%,var(--surface))}
+.ann.a-in{color:var(--c-feat);background:color-mix(in srgb,var(--c-feat) 14%,var(--surface))}
+.ann.a-sep{color:var(--muted);background:var(--surface)}
+.fl.fresh{background:color-mix(in srgb,var(--c-head) 12%,transparent)}
+
+/* resolver */
+.resolver{margin:18px 0 26px;padding:18px;border-radius:20px;border:1px solid var(--line);background:var(--surface-2)}
+.resolver .file{margin:0 0 14px}
+.rbtns{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.rbtn{height:38px;padding:0 14px;border-radius:11px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-weight:600;font-size:14px}
+.rbtn:hover{border-color:var(--ink)}
+.rbtn[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.rnext{font-size:15px;color:var(--ink-2);margin:10px 0 0}
+.rnext code{font-size:.86em}
+.rhead{font:700 11.5px/1 var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+
+/* ---------- Visual Studio mockups ---------- */
+.vs{margin:20px 0 28px}
+.vs-ctl{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:12px;font-size:15px;color:var(--ink-2)}
+.seg{display:inline-flex;padding:3px;border-radius:12px;background:var(--surface-3);border:1px solid var(--line)}
+.seg button{height:34px;padding:0 14px;border-radius:9px;border:0;background:transparent;cursor:pointer;font:600 13.5px/1 var(--f-mono);color:var(--muted)}
+.seg button[aria-checked="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.vs-win{--vs:#7B5CE0;border:1px solid var(--line-2);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-lg);font-family:"Segoe UI",var(--f-body);font-size:13.5px}
+.vs-title{display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;background:var(--surface-3);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+.vs-title i{width:12px;height:12px;border-radius:3px;background:var(--vs)}
+.vs-title span:last-child{margin-left:auto;font:600 10.5px/1 var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.vs-body{display:grid;grid-template-columns:minmax(0,262px) minmax(0,1fr);min-height:392px}
+.vs-side{position:relative;border-right:1px solid var(--line);padding:10px 8px;background:var(--surface-2)}
+.vs-filter{height:28px;border:1px solid var(--line);border-radius:6px;background:var(--surface);padding:0 9px;display:flex;align-items:center;color:var(--muted);font-size:12.5px;margin-bottom:10px}
+.vs-grp{padding:4px 6px;color:var(--muted);font-size:12.5px}
+.vs-br{display:flex;align-items:center;gap:8px;padding:5px 8px 5px 20px;border-radius:6px;color:var(--ink-2);transition:background .2s}
+.vs-br svg{width:14px;height:14px;color:var(--muted);flex:none}
+.vs-br .eye{margin-left:auto;width:15px;height:15px;color:var(--c-head)}
+.vs-br.cur{font-weight:700;color:var(--ink)}
+.vs-br.rc{background:color-mix(in srgb,var(--vs) 18%,transparent);outline:1px solid color-mix(in srgb,var(--vs) 55%,transparent)}
+.vs-menu{position:absolute;left:18px;right:10px;z-index:3;padding:5px;border-radius:9px;background:var(--surface);border:1px solid var(--line-2);box-shadow:var(--shadow-lg);transition:top .35s var(--ease)}
+.vs-menu div{padding:6px 10px;border-radius:5px;white-space:nowrap;color:var(--ink-2)}
+.vs-menu div.sep{height:1px;padding:0;margin:4px 6px;background:var(--line)}
+.vs-menu div.hot{background:color-mix(in srgb,var(--vs) 20%,transparent);color:var(--ink);font-weight:600}
+.vs-menu div.hot2{background:color-mix(in srgb,var(--c-feat) 16%,transparent);color:var(--ink);font-weight:600}
+.vs-main{min-width:0;display:flex;flex-direction:column}
+.vs-tools{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+.vs-tools span{font-size:11.5px;padding:3px 8px;border:1px solid var(--line);border-radius:5px;color:var(--muted)}
+.vs-hh{padding:8px 12px 4px;font-weight:700;font-size:12.5px;color:var(--ink-2)}
+.vs-hist{position:relative;padding:0 8px 10px 8px}
+.vs-hist svg.vg{position:absolute;left:8px;top:0}
+.vs-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:8px;height:34px;padding-right:6px;border-radius:5px}
+.vs-row:hover{background:var(--surface-2)}
+.vs-row .msg{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+.vs-row .msg em{font-style:normal;font:700 10.5px/1 var(--f-mono);padding:3px 6px;border-radius:5px;margin-right:6px;color:#fff}
+.vs-row .msg em.m{background:var(--c-main)} .vs-row .msg em.f{background:var(--c-feat)}
+.vs-row .h{font:500 11.5px/1 var(--f-mono);color:var(--muted)}
+.vs-explain{display:grid;gap:10px;margin-top:14px}
+.vs-explain div{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:4px 14px;align-items:baseline;padding:13px 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}
+.vs-explain code{font-size:13.5px;white-space:normal;background:var(--code-bg);border:1px solid var(--line);padding:.2em .5em;border-radius:6px}
+.vs-explain p{margin:0;font-size:15px;color:var(--ink-2)}
+@media (max-width:640px){.vs-body{grid-template-columns:minmax(0,1fr)}.vs-side{border-right:0;border-bottom:1px solid var(--line);padding-bottom:276px}.vs-body{min-height:0}.vs-menu{left:18px;right:auto;min-width:250px;max-width:calc(100% - 28px)}.vs-explain div{grid-template-columns:minmax(0,1fr)}}
+
+/* merge editor */
+.me{margin:20px 0 28px;border:1px solid var(--line-2);border-radius:14px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-lg);font-family:"Segoe UI",var(--f-body);font-size:13.5px}
+.me-top{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.me-pane{min-width:0;border-bottom:1px solid var(--line)}
+.me-pane+.me-pane{border-left:1px solid var(--line)}
+.me-h{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 10px;background:var(--surface-3);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-2)}
+.me-h b{font-weight:700}
+.me-h .sp{flex:1}
+.me-btn{height:28px;padding:0 10px;border-radius:6px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-size:12.5px;font-weight:600}
+.me-btn:hover:not(:disabled){border-color:var(--ink)}
+.me-btn:disabled{opacity:.45;cursor:default}
+.me-btn.acc{background:#7B5CE0;border-color:#7B5CE0;color:#fff}
+.me-code{padding:6px 0;font:500 13px/1.75 var(--f-mono);overflow-x:auto}
+.me-line{display:flex;align-items:center;gap:8px;padding:0 10px;white-space:pre;min-width:max-content}
+.me-line input{width:15px;height:15px;margin:0;accent-color:#7B5CE0}
+.me-line .cb{width:15px;flex:none}
+.me-line.conf.in{background:color-mix(in srgb,var(--c-feat) 13%,transparent)}
+.me-line.conf.cur{background:color-mix(in srgb,var(--c-main) 12%,transparent)}
+.me-line.pending{color:var(--c-ref);font-style:italic;background:color-mix(in srgb,var(--c-ref) 9%,transparent)}
+.me-line.picked{background:color-mix(in srgb,var(--c-head) 13%,transparent)}
+.me-status{padding:10px 12px;border-top:1px solid var(--line);background:var(--surface-2);font-size:14px;color:var(--ink-2)}
+.me-status.ok{color:var(--c-feat);font-weight:600}
+@media (max-width:640px){.me-top{grid-template-columns:minmax(0,1fr)}.me-pane+.me-pane{border-left:0}}
+
+/* cheatsheet */
+.rules3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:10px 0 26px}
+.rules3 div{padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
+.rules3 span{display:block;font:600 22px/1 var(--f-display);color:var(--c-head);margin-bottom:10px}
+.rules3 b{display:block;font-size:16.5px;line-height:1.35;margin-bottom:6px}
+.rules3 p{margin:0;font-size:14.5px;color:var(--muted);line-height:1.5}
+.cgroup{margin:22px 0 8px;font:700 11.5px/1 var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.cgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.ccard{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface);cursor:pointer;transition:border-color .2s,transform .2s}
+.ccard:hover{border-color:var(--c-head);transform:translateY(-1px)}
+.ccard code{font:600 13.5px/1.35 var(--f-mono);color:var(--ink);word-break:break-word}
+.ccard span{font-size:14px;line-height:1.45;color:var(--muted)}
+.gloss{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0 0}
+.gloss div{padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}
+.gloss dt{font-weight:650;margin-bottom:4px}
+.gloss dd{margin:0;font-size:15px;line-height:1.5;color:var(--ink-2)}
+
+/* quiz */
+.quiz-score{display:flex;align-items:center;gap:14px;margin:6px 0 18px;padding:14px 18px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.quiz-score b{font:600 22px/1 var(--f-display)}
+.qbar{flex:1;height:8px;border-radius:8px;background:var(--surface-3);overflow:hidden}
+.qbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--c-feat),var(--c-head));transition:width .5s var(--ease)}
+.qreset{height:34px;padding:0 12px;border-radius:10px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-weight:600;font-size:13.5px}
+.q{margin:0 0 14px;padding:18px;border-radius:18px;border:1px solid var(--line);background:var(--surface)}
+.q-t{display:flex;gap:12px;font-weight:650;font-size:16.5px;line-height:1.45;margin-bottom:12px}
+.q-t span{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 12px/1 var(--f-mono);background:var(--surface-3);color:var(--ink-2)}
+.q-opts{display:grid;gap:8px}
+.q-opt{text-align:left;padding:11px 14px;border-radius:12px;border:1px solid var(--line-2);background:var(--surface-2);cursor:pointer;font-size:15px;line-height:1.45;transition:border-color .2s,background .2s}
+.q-opt:hover:not(:disabled){border-color:var(--ink)}
+.q-opt:disabled{cursor:default}
+.q-opt.right{border-color:var(--c-feat);background:color-mix(in srgb,var(--c-feat) 13%,var(--surface))}
+.q-opt.wrong{border-color:var(--c-ref);background:color-mix(in srgb,var(--c-ref) 11%,var(--surface))}
+.q-exp{margin:12px 0 0;padding:12px 14px;border-radius:12px;font-size:15px;line-height:1.55;background:var(--surface-2);color:var(--ink-2)}
+.q-exp b.ok{color:var(--c-feat)} .q-exp b.no{color:var(--c-ref)}
+
+/* sources & footer */
+.src{list-style:none;padding:0;margin:10px 0 0;display:grid;gap:8px}
+.src li{margin:0;padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-size:15px}
+.src span{color:var(--muted)}
+.foot{border-top:1px solid var(--line);margin-top:30px;padding-block:26px 40px}
+.foot-in{max-width:1260px;margin:0 auto;padding-inline:20px;display:flex;flex-wrap:wrap;gap:10px 24px;justify-content:space-between;font-size:14px;color:var(--muted)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 24px);z-index:95;transform:translate(-50%,20px);opacity:0;pointer-events:none;padding:10px 16px;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:600;font-size:14px;transition:opacity .25s,transform .25s var(--ease)}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:900px){
+  .hero-in{grid-template-columns:minmax(0,1fr);gap:32px;padding-top:40px;padding-bottom:44px}
+}
+@media (max-width:640px){
+  body{font-size:16.5px}
+  .brand-t span{display:none}
+  .pair,.ritual,.rules3,.gloss{grid-template-columns:minmax(0,1fr)}
+  .big-rule{padding:22px 18px}
+  .lead{font-size:18px}
+  .hero-sub{font-size:17.5px}
+  .toc-btn span{display:none}
+  .toc-btn{padding:0 11px}
+  .auto span{display:none}
+  .auto{padding:0 10px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.6" fill="currentColor"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6.5 3h7.5l4.5 4.5V21h-12z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M14 3v4.5h4.5M9.5 12h5M9.5 15.5h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 2.8 19.5h18.4z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M12 10v4.2M12 17h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 3.5l1.9 5.3 5.6 1.2-4.4 3.5 1.2 5.5L12 16.2 7.7 19l1.2-5.5-4.4-3.5 5.6-1.2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M15 15l5 5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-key" viewBox="0 0 24 24"><rect x="3" y="6.5" width="18" height="11" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M7 10h.01M10.5 10h.01M14 10h.01M17 10h.01M8 14h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M15.5 8.5V6.2A1.7 1.7 0 0 0 13.8 4.5H6.2A1.7 1.7 0 0 0 4.5 6.2v7.6a1.7 1.7 0 0 0 1.7 1.7h2.3" fill="none" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-house" viewBox="0 0 24 24"><path d="M3.5 10.5 12 4l8.5 6.5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9v10.5h5v-5h3v5h5V9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="18.5" cy="4.5" r="1.6" fill="currentColor"/></symbol>
+    <symbol id="i-truck" viewBox="0 0 24 24"><path d="M2.5 6.5h11v9.5h-11zM13.5 9.5h4l3 3.2v3.3h-7z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><circle cx="6.5" cy="17.5" r="1.9" fill="var(--surface)" stroke="currentColor" stroke-width="1.9"/><circle cx="17" cy="17.5" r="1.9" fill="var(--surface)" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="M14.5 6 8.5 12l6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5.5h3v13H8zM13 5.5h3v13h-3z" fill="currentColor"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-term" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M7 9.5l3 2.5-3 2.5M12 15h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-win" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M3 9h18M9 9v10.5" stroke="currentColor" stroke-width="1.9"/></symbol>
+    <symbol id="i-graph" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="6" cy="18" r="2.4" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="18" cy="9" r="2.4" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M6 8.4v7.2M18 11.4c0 4-6 3-10.3 5.2" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-br" viewBox="0 0 24 24"><circle cx="7" cy="5.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="7" cy="18.5" r="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="17" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M7 7.7v8.6M17 10.2c0 3.6-5 3-9.2 6.4" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="12" cy="12" r="2.8" fill="currentColor"/></symbol>
+    <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.9"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
+  </defs>
+</svg>
+
+<div class="progress" id="progress" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="#top" aria-label="К началу страницы">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path d="M6 4v16" stroke="var(--c-main)" stroke-width="2.6" stroke-linecap="round"/><path d="M6 7c0 5 12 3 12 8v1" fill="none" stroke="var(--c-feat)" stroke-width="2.6" stroke-linecap="round"/><path d="M18 16c0 3-8 2-12 4" fill="none" stroke="var(--c-feat)" stroke-width="2.6" stroke-linecap="round" opacity=".45"/><circle cx="6" cy="20" r="2.6" fill="var(--c-head)"/></svg>
+      </span>
+      <span class="brand-t"><b>merge &amp; rebase</b><span>Конспект по Git</span></span>
+    </a>
+    <span class="topbar-sp"></span>
+    <button class="toc-btn" id="tocBtn" type="button" aria-controls="drawer" aria-expanded="false"><svg aria-hidden="true"><use href="#i-menu"/></svg><span>Содержание</span></button>
+    <div class="theme-ctl" role="group" aria-label="Тема оформления">
+      <button class="bulb" id="bulb" type="button" aria-label="Переключить тему">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <defs>
+            <radialGradient id="bulbGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0" stop-color="#FFE27A" stop-opacity=".95"/>
+              <stop offset=".5" stop-color="#FFC43D" stop-opacity=".38"/>
+              <stop offset="1" stop-color="#FFC43D" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+          <circle class="b-glow" cx="16" cy="12.5" r="15.5" fill="url(#bulbGlow)"/>
+          <g class="b-rays">
+            <line x1="16" y1="-1.5" x2="16" y2="1"/><line x1="4.7" y1="3.2" x2="6.5" y2="5"/><line x1="27.3" y1="3.2" x2="25.5" y2="5"/>
+            <line x1="0" y1="12.5" x2="2.5" y2="12.5"/><line x1="32" y1="12.5" x2="29.5" y2="12.5"/>
+            <line x1="3.6" y1="20.5" x2="5.6" y2="19.2"/><line x1="28.4" y1="20.5" x2="26.4" y2="19.2"/>
+          </g>
+          <path class="b-glass" d="M16 4a8.3 8.3 0 0 0-5 14.9c.8.6 1.3 1.6 1.3 2.6v.9h7.4v-.9c0-1 .5-2 1.3-2.6A8.3 8.3 0 0 0 16 4z"/>
+          <path class="b-fil" d="M13.4 18.8v-3.2l1.3-2.4 1.3 2 1.3-2 1.3 2.4v3.2"/>
+          <path class="b-base" d="M12.9 24.6h6.2M13.5 27h5M14.8 29.3h2.4"/>
+        </svg>
+      </button>
+      <button class="auto" id="autoTheme" type="button" aria-pressed="false" title="Тема как в системе"><svg aria-hidden="true"><use href="#i-auto"/></svg><span>Авто</span></button>
+    </div>
+  </div>
+</header>
+
+<section class="hero" id="top">
+  <div class="hero-in">
+    <div>
+      <span class="eyebrow"><i></i>Конспект лекции · Git</span>
+      <h1>Слияние<span class="h1-2">и перебазирование</span></h1>
+      <p class="hero-sub">Как соединять ветки командами <span class="mk mk-m">git merge</span> и <span class="mk mk-f">git rebase</span>: схемы по шагам, реальный вывод Git Bash и те же действия в Visual Studio.</p>
+      <ul class="hero-meta">
+        <li><svg aria-hidden="true"><use href="#i-clock"/></svg>≈ 45 минут</li>
+        <li><svg aria-hidden="true"><use href="#i-graph"/></svg>13 разделов</li>
+        <li><svg aria-hidden="true"><use href="#i-term"/></svg>Git Bash</li>
+        <li><svg aria-hidden="true"><use href="#i-win"/></svg>Visual Studio</li>
+      </ul>
+    </div>
+    <div class="hero-card" aria-label="Анимированный граф веток: ветка ответвляется и сливается обратно">
+      <div class="hero-card-h"><span>Живой граф веток</span><span class="hero-dots" id="heroDots"><span></span><span></span><span></span><span></span><span></span></span></div>
+      <div class="hero-graph"><svg id="heroSvg" role="img" aria-label="Граф: ветка feature ответвляется от main и сливается обратно"></svg></div>
+      <div class="hero-cmd" aria-hidden="true"><span class="ps">$</span><span id="heroTxt"></span><span class="caret"></span></div>
+    </div>
+  </div>
+</section>
+
+<div class="shell">
+  <aside class="side" aria-label="Содержание">
+    <div class="toc-title">История конспекта</div>
+    <ol class="toc-list" id="toc">
+      <li><a href="#s1"><span class="toc-dot"></span><span class="toc-n">01</span><span class="toc-t">Зачем это всё</span></a></li>
+      <li><a href="#s2"><span class="toc-dot"></span><span class="toc-n">02</span><span class="toc-t">Коммит, ветка, HEAD</span></a></li>
+      <li><a href="#s3"><span class="toc-dot"></span><span class="toc-n">03</span><span class="toc-t">Главное правило</span></a></li>
+      <li><a href="#s4"><span class="toc-dot"></span><span class="toc-n">04</span><span class="toc-t">Merge</span></a></li>
+      <li><a href="#s5"><span class="toc-dot"></span><span class="toc-n">05</span><span class="toc-t">Конфликт при merge</span></a></li>
+      <li><a href="#s6"><span class="toc-dot"></span><span class="toc-n">06</span><span class="toc-t">Rebase</span></a></li>
+      <li><a href="#s7"><span class="toc-dot"></span><span class="toc-n">07</span><span class="toc-t">Конфликт при rebase</span></a></li>
+      <li><a href="#s8"><span class="toc-dot"></span><span class="toc-n">08</span><span class="toc-t">Золотое правило</span></a></li>
+      <li><a href="#s9"><span class="toc-dot"></span><span class="toc-n">09</span><span class="toc-t">Merge или rebase</span></a></li>
+      <li><a href="#s10"><span class="toc-dot"></span><span class="toc-n">10</span><span class="toc-t">Практика в Git Bash</span></a></li>
+      <li><a href="#s11"><span class="toc-dot"></span><span class="toc-n">11</span><span class="toc-t">Visual Studio</span></a></li>
+      <li><a href="#s12"><span class="toc-dot"></span><span class="toc-n">12</span><span class="toc-t">Шпаргалка</span></a></li>
+      <li><a href="#s13"><span class="toc-dot"></span><span class="toc-n">13</span><span class="toc-t">Проверь себя</span></a></li>
+    </ol>
+  </aside>
+
+  <main class="prose" id="main">
+
+<!-- ============ 1 ============ -->
+<section class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 01</div><h2>Зачем это всё: два человека и один вордовский документ</h2></div>
+  <p class="lead">Ветки нужны, чтобы работать параллельно и не мешать друг другу. Merge и rebase нужны, чтобы потом собрать эту работу в одно целое. Проще всего понять это на примере обычного Word.</p>
+  <p>Аня и Боря вдвоём пишут отчёт. Есть общий файл «Отчёт.docx» с двумя абзацами. Чтобы не мешать друг другу, каждый делает себе копию и работает в ней:</p>
+  <ul>
+    <li><b>Аня</b> дописывает текст после первого абзаца, потом ещё немного. У неё получаются версии «Аня v1» и «Аня v2».</li>
+    <li><b>Боря</b> в это же время дописывает текст после второго абзаца. У него «Боря v1» и «Боря v2».</li>
+  </ul>
+
+  <figure class="dfig" id="figWord">
+    <div class="dfig-panels wide-r">
+      <div class="dpanel"><div class="dpanel-h"><b><i></i>Граф веток</b><span>та же история глазами Git</span></div><div class="dpanel-body"><svg id="wordGraph" role="img" aria-label="Граф: от исходного коммита отходят ветки anya и borya, по два коммита, и сходятся в итоговом коммите"></svg></div></div>
+      <div class="dpanel"><div class="dpanel-h"><b><i></i>Два вордовских файла</b><span>как это выглядит без Git</span></div><div class="dpanel-body scroll"><svg id="wordDocs" role="img" aria-label="Оригинал отчёта копируют Аня и Боря, каждый делает по две версии, затем все правки собирают в итоговый отчёт"></svg></div></div>
+    </div>
+    <figcaption class="dfig-cap">Зелёным — правки Ани, бирюзовым — правки Бори. Ярче выделено то, что добавили в этой версии.</figcaption>
+  </figure>
+
+  <p>Теперь нужен один итоговый документ, где есть правки обоих. Вручную это больно: открыть два файла, сравнить построчно, перенести куски и ничего не потерять. А если Аня и Боря исправили одно и то же предложение по-разному — чей вариант оставить?</p>
+  <p>Git делает эту работу за нас. Вот как слова из мира Word превращаются в термины Git:</p>
+  <div class="tbl"><table>
+    <thead><tr><th>В мире Word</th><th>В мире Git</th></tr></thead>
+    <tbody>
+      <tr><td>Исходный файл «Отчёт.docx»</td><td>Коммит, от которого всё началось (общий предок)</td></tr>
+      <tr><td>Своя копия у Ани и у Бори</td><td>Ветка: <code>anya</code>, <code>borya</code></td></tr>
+      <tr><td>«Сохранить новую версию»</td><td>Коммит</td></tr>
+      <tr><td>Собрать итоговый документ из двух копий</td><td><b>Merge</b> (слияние)</td></tr>
+      <tr><td>Боря берёт свежую версию Ани и заново вносит свои правки поверх неё</td><td><b>Rebase</b> (перебазирование)</td></tr>
+      <tr><td>Оба исправили одно предложение по-разному</td><td><b>Конфликт</b>: Git спросит тебя, какой вариант оставить</td></tr>
+    </tbody>
+  </table></div>
+  <div class="note rule"><div class="note-ic"><svg><use href="#i-pin"/></svg></div><div><div class="note-k">Запомни</div><p>Ветки — чтобы не мешать друг другу. Merge и rebase — чтобы потом собрать всё вместе.</p></div></div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 02</div><h2>Быстрое повторение: коммит, ветка и HEAD</h2></div>
+  <p class="lead">Без этих трёх понятий merge и rebase кажутся магией, а с ними становятся очевидными.</p>
+  <p><b>Коммит</b> — снимок (фотография) всего проекта в какой-то момент. У него есть уникальный номер — хеш, например <code>8e3f1b4</code>, — сообщение и ссылка на предыдущий коммит, то есть на родителя. Главное: коммит нельзя изменить, он «высечен в камне». Это пригодится, когда дойдём до rebase.</p>
+  <p><b>Ветка</b> — это просто имя, прикреплённое к последнему коммиту. Представь стикер с надписью <code>main</code>, приклеенный к коммиту. Ветка — не папка и не копия файлов, поэтому создаётся мгновенно.</p>
+  <p><b>HEAD</b> — метка «Вы находитесь здесь», как на карте в торговом центре. Обычно HEAD указывает на ветку, а ветка — на коммит: HEAD → ветка → коммит.</p>
+
+  <h3>Как читать двойные схемы</h3>
+  <p>Каждая схема в конспекте нарисована дважды. <b>Слева — граф веток</b>: так историю показывают Visual Studio и другие программы. Линии — ветки, кружки — коммиты. <b>Справа — те же коммиты «изнутри»</b>: видно, к какому коммиту приклеен стикер каждой ветки и где стоит HEAD. Смотри сначала на граф, а потом на стикеры.</p>
+  <div class="legend" aria-label="Легенда схем">
+    <div><svg viewBox="0 0 34 22"><line x1="2" y1="11" x2="32" y2="11" stroke="var(--c-main)" stroke-width="3.4" stroke-linecap="round"/><circle cx="17" cy="11" r="7" fill="var(--c-main)" stroke="var(--surface)" stroke-width="2.6"/></svg>Коммит в <code>main</code></div>
+    <div><svg viewBox="0 0 34 22"><line x1="2" y1="11" x2="32" y2="11" stroke="var(--c-feat)" stroke-width="3.4" stroke-linecap="round"/><circle cx="17" cy="11" r="7" fill="var(--c-feat)" stroke="var(--surface)" stroke-width="2.6"/></svg>Коммит в <code>bugfix</code></div>
+    <div><svg viewBox="0 0 34 22"><circle cx="17" cy="11" r="8.5" fill="var(--c-main)" stroke="var(--surface)" stroke-width="2"/><circle cx="17" cy="11" r="3" fill="var(--surface)"/></svg>Merge-коммит (два родителя)</div>
+    <div><svg viewBox="0 0 34 22"><circle cx="17" cy="11" r="6" fill="var(--c-main)"/><circle cx="17" cy="11" r="9.5" fill="none" stroke="var(--c-head)" stroke-width="2.4"/></svg>HEAD — «ты здесь»</div>
+    <div><svg viewBox="0 0 34 22"><rect x="2" y="4" width="30" height="14" rx="4" fill="var(--c-ref)"/></svg>Стикер ветки (куда она указывает)</div>
+    <div><svg viewBox="0 0 34 22"><circle cx="17" cy="11" r="7" fill="none" stroke="var(--c-ghost)" stroke-width="2" stroke-dasharray="3 2.5"/></svg>Старый, брошенный коммит</div>
+  </div>
+
+  <p>Пройди пять шагов кнопками под схемой или нажми ▶, чтобы проиграть их подряд.</p>
+  <figure class="dfig" data-fig="basics"></figure>
+
+  <div class="note rule"><div class="note-ic"><svg><use href="#i-pin"/></svg></div><div><div class="note-k">Правило коммита</div><p>Новый коммит всегда пристраивается туда, где стоит HEAD, и двигает вперёд только ту ветку, на которую смотрит HEAD.</p></div></div>
+  <p>Теперь в main есть D, которого нет в bugfix, а в bugfix — E, которого нет в main. Как их соединить? Есть два способа: merge и rebase. Чтобы увидеть такую развилку у себя, выполни <code>git log --oneline --graph --all</code> — Git нарисует ту же картинку символами (как её читать — в разделе 10).</p>
+</section>
+
+<!-- ============ 3 ============ -->
+<section class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 03</div><h2>Главное правило, которое нужно выучить наизусть</h2></div>
+  <div class="big-rule">
+    <span class="tag"><svg width="14" height="14" aria-hidden="true"><use href="#i-pin"/></svg>Главное правило</span>
+    <p class="st">Git меняет только ту ветку, <em>на которой ты стоишь</em>.</p>
+    <p class="muted" style="position:relative;margin:0">Ветка, которую ты называешь в команде, — источник изменений. Её Git не трогает. Это то же правило, что и с коммитом: двигается только ветка под HEAD.</p>
+    <div class="ritual">
+      <div><b><span>1</span>Встань, куда нужно</b><code>git switch &lt;ветка, которую меняем&gt;</code></div>
+      <div><b><span>2</span>Назови другую ветку</b><code>git merge &lt;откуда&gt;</code> или <code>git rebase &lt;на что&gt;</code></div>
+    </div>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Команда</th><th>Где стоишь</th><th>Как читать вслух</th><th>Что меняется</th><th>Что не меняется</th></tr></thead>
+    <tbody>
+      <tr><td><code>git merge bugfix</code></td><td>в <code>main</code></td><td>«Влей bugfix в меня»</td><td><code>main</code></td><td><code>bugfix</code></td></tr>
+      <tr><td><code>git rebase main</code></td><td>в <code>bugfix</code></td><td>«Пересади меня на верхушку main»</td><td><code>bugfix</code></td><td><code>main</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note warn"><div class="note-ic"><svg><use href="#i-alert"/></svg></div><div><div class="note-k">Частая ошибка</div><p>Выполнить команду не в той ветке. Перед merge или rebase всегда проверяй, где стоишь:</p>
+    <ul><li>в Git Bash имя ветки видно в скобках в подсказке: <code>~/report (main)</code>;</li><li><code>git status</code> пишет в первой строке <code>On branch main</code>;</li><li>в Visual Studio текущая ветка показана в строке состояния внизу окна.</li></ul></div></div>
+</section>
+
+<!-- ============ 4 ============ -->
+<section class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 04</div><h2>Merge (слияние): два сценария</h2></div>
+  <p class="lead"><code>git merge</code> добавляет работу другой ветки в твою текущую. Git сам выбирает один из двух способов. Выбирать не нужно, но важно понимать, что произошло.</p>
+
+  <h3>4.1. Fast-forward — «перемотка вперёд»</h3>
+  <p>Ситуация: ты создал ветку bugfix и сделал в ней коммит D. А в main за это время никто ничего не коммитил.</p>
+  <figure class="dfig" data-fig="ff"></figure>
+  <p>Git видит, что main можно просто «догнать»: D уже стоит сразу после C. Поэтому новый коммит не создаётся — Git передвигает стикер main вперёд на D. Как перемотка видео — отсюда и название. В терминале это выглядит так (хеши у тебя будут другими):</p>
+  <div class="term mini" data-path="~/report" data-br="main"><pre class="term-src">$ git merge bugfix
+Updating f600372..8e3f1b4
+Fast-forward
+ doc.txt | 1 +
+ 1 file changed, 1 insertion(+)</pre></div>
+  <div class="note analogy"><div class="note-ic"><svg><use href="#i-doc"/></svg></div><div><div class="note-k">Аналогия с Word</div><p>Боря ничего не менял в своей копии, а Аня дописала текст. Склеивать нечего: Боря просто берёт последнюю версию Ани.</p></div></div>
+  <div class="note curious"><div class="note-ic"><svg><use href="#i-search"/></svg></div><div><div class="note-k">Для любопытных</div><p>Чтобы Git всегда создавал узел слияния, даже когда можно перемотать, есть флаг <code>git merge --no-ff bugfix</code>.</p></div></div>
+
+  <h3>4.2. Настоящее слияние — merge-коммит</h3>
+  <p>Ситуация как в конце раздела 2: main ушла вперёд (коммит D), bugfix тоже (коммиты E и F). Просто «перемотать» уже не получится — у веток разная история.</p>
+  <figure class="dfig" data-fig="merge"></figure>
+  <p>Git создаёт новый особый коммит M — <b>merge-коммит</b> (коммит слияния). У обычного коммита один родитель, а у M их два: D и F. Он как узел, который связывает две линии истории, и в нём есть всё: и изменения из D, и из E и F. main сдвинулась на M, а bugfix осталась на F — Git её не трогал. Это и есть главное правило из раздела 3.</p>
+  <div class="term mini" data-path="~/report" data-br="main"><pre class="term-src">$ git merge bugfix
+Auto-merging doc.txt
+Merge made by the 'ort' strategy.
+ doc.txt | 1 +
+ 1 file changed, 1 insertion(+)</pre></div>
+  <p>Не пугайся слова <code>'ort'</code> — это просто название алгоритма слияния внутри Git.</p>
+  <h4>Почему это называют «трёхсторонним слиянием»</h4>
+  <p>Git сравнивает не две версии, а три: общего предка C, верхушку main (D) и верхушку bugfix (F). Сравнивая каждую ветку с предком, Git точно знает, кто что изменил:</p>
+  <ul>
+    <li>изменил только один — берётся его вариант;</li>
+    <li>изменили оба, но в разных местах — берутся оба изменения;</li>
+    <li>изменили оба одно и то же место по-разному — конфликт (раздел 5).</li>
+  </ul>
+  <div class="note analogy"><div class="note-ic"><svg><use href="#i-doc"/></svg></div><div><div class="note-k">Аналогия с Word</div><p>Аня и Боря садятся вместе, кладут рядом оригинал и две свои копии и собирают итоговый документ. Новая версия «Отчёт (объединённый)» — это и есть merge-коммит.</p></div></div>
+
+  <h3>4.3. После слияния: убираем стикер</h3>
+  <p>Работа из bugfix уже в main, ветка больше не нужна:</p>
+  <div class="term mini" data-path="~/report" data-br="main"><pre class="term-src">$ git branch -d bugfix
+Deleted branch bugfix (was 551db31).</pre></div>
+  <p>Удаляется только стикер — коммиты E и F остаются в истории main. Флаг <code>-d</code> безопасный: если ветка ещё не слита, Git откажется её удалять и напишет <code>error: the branch 'bugfix' is not fully merged.</code></p>
+</section>
+
+<!-- ============ 5 ============ -->
+<section class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 05</div><h2>Конфликт при слиянии: не поломка, а вопрос</h2></div>
+  <p class="lead">Конфликт возникает, когда обе ветки изменили одни и те же строки одного файла по-разному. Git не умеет угадывать, чей вариант правильный, и честно спрашивает тебя. Ничего не сломалось: Git просто остановился и ждёт решения.</p>
+  <div class="note analogy"><div class="note-ic"><svg><use href="#i-doc"/></svg></div><div><div class="note-k">Аналогия с Word</div><p>Аня переименовала заголовок в «Annual Report», а Боря — в «Final Report». Какой оставить? Решить может только человек.</p></div></div>
+
+  <h3>Как выглядит конфликт</h3>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git merge anya-title
+Auto-merging doc.txt
+CONFLICT (content): Merge conflict in doc.txt
+Automatic merge failed; fix conflicts and then commit the result.
+::br main|MERGING
+$ git status
+On branch main
+You have unmerged paths.
+  (fix conflicts and run "git commit")
+  (use "git merge --abort" to abort the merge)
+
+Unmerged paths:
+  (use "git add &lt;file&gt;..." to mark resolution)
+        both modified:   doc.txt</pre></div>
+  <p>Подсказка Git Bash сменилась на <code>(main|MERGING)</code>: «идёт слияние, оно ещё не закончено». А <code>git status</code> в любой непонятной ситуации пишет, что происходит и что делать дальше. Перевод подсказок: «исправь конфликты и выполни git commit» или «выполни git merge --abort, чтобы отменить слияние». Строка <code>both modified</code> значит «изменён в обеих ветках» — вот он, файл с конфликтом.</p>
+  <p>Внутрь файла Git вставил специальные маркеры:</p>
+  <div class="file">
+    <div class="file-tab">doc.txt <span class="badge">конфликт</span></div>
+    <div class="file-body">
+      <div class="fl mk z-cur"><span class="n">1</span><span>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</span><span class="ann a-cur">начало: версия из твоей ветки</span></div>
+      <div class="fl z-cur"><span class="n">2</span><span>Final Report</span><span></span></div>
+      <div class="fl mk z-sep"><span class="n">3</span><span>=======</span><span class="ann a-sep">забор между версиями</span></div>
+      <div class="fl z-in"><span class="n">4</span><span>Annual Report</span><span></span></div>
+      <div class="fl mk z-in"><span class="n">5</span><span>&gt;&gt;&gt;&gt;&gt;&gt;&gt; anya-title</span><span class="ann a-in">конец: версия из вливаемой ветки</span></div>
+      <div class="fl"><span class="n">6</span><span>Paragraph 1</span><span></span></div>
+      <div class="fl"><span class="n">7</span><span>Lorem ipsum (Anya)</span><span></span></div>
+      <div class="fl"><span class="n">8</span><span>Paragraph 2</span><span></span></div>
+    </div>
+  </div>
+  <div class="tbl"><table>
+    <thead><tr><th>Маркер</th><th>Что значит</th><th>Как запомнить</th></tr></thead>
+    <tbody>
+      <tr><td><code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code></td><td>Начало версии из текущей ветки (где ты стоишь)</td><td>Верх — «моё, здесь»</td></tr>
+      <tr><td><code>=======</code></td><td>Разделитель между двумя версиями</td><td>Забор между соседями</td></tr>
+      <tr><td><code>&gt;&gt;&gt;&gt;&gt;&gt;&gt; anya-title</code></td><td>Конец версии из вливаемой ветки</td><td>Низ — «пришло оттуда»</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Реши конфликт сам: попробуй прямо здесь</h3>
+  <div class="resolver" id="resolver">
+    <p class="rhead">Что оставить в заголовке?</p>
+    <div class="rbtns" role="group" aria-label="Вариант решения конфликта">
+      <button class="rbtn" type="button" data-pick="cur" aria-pressed="false">Верх: Final Report</button>
+      <button class="rbtn" type="button" data-pick="in" aria-pressed="false">Низ: Annual Report</button>
+      <button class="rbtn" type="button" data-pick="both" aria-pressed="false">Оба варианта</button>
+      <button class="rbtn" type="button" data-pick="own" aria-pressed="false">Свой: Final Annual Report</button>
+    </div>
+    <div class="file">
+      <div class="file-tab">doc.txt <span class="badge" id="resBadge">конфликт</span></div>
+      <div class="file-body" id="resBody"></div>
+    </div>
+    <p class="rnext" id="resNext">Выбери вариант — и увидишь, как будет выглядеть файл без маркеров.</p>
+  </div>
+
+  <h3>Решение за 4 шага</h3>
+  <ol class="steps">
+    <li>Открой файл с конфликтом, например <code>notepad doc.txt</code>.</li>
+    <li>Реши, что оставить: верхний вариант, нижний, оба или свой собственный. Например, <code>Final Annual Report</code>.</li>
+    <li>Удали все три строки-маркера (<code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>) и сохрани файл.</li>
+    <li>Скажи Git, что конфликт решён, и заверши слияние коммитом.</li>
+  </ol>
+  <div class="term mini" data-path="~/report" data-br="main|MERGING"><pre class="term-src">$ git add doc.txt
+$ git commit -m "Merge anya-title: resolve title conflict"
+[main a2a66d5] Merge anya-title: resolve title conflict
+::br main</pre></div>
+  <p>Здесь <code>git add</code> означает «я разобрался с этим файлом». После коммита появится обычный merge-коммит, а подсказка снова станет просто <code>(main)</code>.</p>
+  <div class="note tip"><div class="note-ic"><svg><use href="#i-spark"/></svg></div><div><div class="note-k">Если запутался</div><p>Всегда есть кнопка отмены — <code>git merge --abort</code>. Всё вернётся к состоянию до слияния, как будто ты ничего не начинал.</p></div></div>
+</section>
+
+<!-- ============ 6 ============ -->
+<section class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 06</div><h2>Rebase (перебазирование): пересадка ветки</h2></div>
+  <p class="lead"><code>git rebase</code> решает ту же задачу, что и merge, — соединяет работу двух веток. Но вместо узла-склейки он переносит твои коммиты на верхушку другой ветки. История получается такой, будто ты начал работу уже после всех изменений в main.</p>
+  <div class="note analogy"><div class="note-ic"><svg><use href="#i-doc"/></svg></div><div><div class="note-k">Аналогия с Word</div><p>Боря говорит Ане: «Дай мне свою последнюю версию. Я возьму её за основу и заново внесу туда свои правки — по порядку, одну за другой». В итоге кажется, что Боря начал работать после Ани, хотя на самом деле они работали одновременно.</p></div></div>
+  <p>Та же развилка, что в разделе 4.2, но теперь мы стоим в <b>bugfix</b>. Пройди шаги: второй и третий показывают, что происходит внутри одной команды <code>git rebase main</code>.</p>
+  <figure class="dfig" data-fig="rebase"></figure>
+  <h3>Что делает Git — по шагам</h3>
+  <ol class="steps">
+    <li>Находит общего предка двух веток — коммит C.</li>
+    <li>Запоминает, что изменили твои коммиты E и F, и временно откладывает их в сторону.</li>
+    <li>Переставляет bugfix на верхушку main — коммит D.</li>
+    <li>Заново применяет изменения по одному: сначала из E — получается новый коммит E′, потом из F — новый коммит F′.</li>
+    <li>Передвигает стикер bugfix на F′.</li>
+  </ol>
+  <div class="term mini" data-path="~/report" data-br="bugfix"><pre class="term-src">$ git rebase main
+Successfully rebased and updated refs/heads/bugfix.</pre></div>
+
+  <h3>Почему E′, а не E? Самое важное про rebase</h3>
+  <p>Помнишь, что коммит нельзя изменить? В каждом коммите записан его родитель. У E родителем был C, а теперь должен стать D. Значит, это уже другой коммит: с тем же сообщением и теми же изменениями, но с новым хешем.</p>
+  <div class="note rule"><div class="note-ic"><svg><use href="#i-pin"/></svg></div><div><div class="note-k">Запомни</div><p>Rebase не передвигает коммиты, а создаёт их копии. Штрих в E′ и означает «копия E».</p></div></div>
+  <p>Это видно в терминале: сообщения те же, а хеши новые.</p>
+  <div class="tbl"><table>
+    <thead><tr><th>Сообщение коммита</th><th>Хеш до rebase</th><th>Хеш после rebase</th></tr></thead>
+    <tbody>
+      <tr><td>Anya: add footer</td><td><code>b7e86c3</code></td><td><code>e427cf5</code></td></tr>
+      <tr><td>Anya: add ending</td><td><code>21e76bd</code></td><td><code>8544538</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>А старые E и F? Они не исчезают мгновенно, но на них больше не указывает ни одна ветка. В обычном графе их уже не видно, а со временем Git уберёт их сам.</p>
+
+  <h3>Завершаем: быстрое слияние</h3>
+  <p>Rebase обновил только bugfix (главное правило!), main всё ещё стоит на D. Чтобы работа попала в main, переходим туда и сливаем — это последний шаг на схеме выше:</p>
+  <div class="term mini" data-path="~/report" data-br="bugfix"><pre class="term-src">$ git switch main
+Switched to branch 'main'
+::br main
+$ git merge bugfix
+Updating c3445d8..8544538
+Fast-forward
+ doc.txt | 2 ++
+ 1 file changed, 2 insertions(+)</pre></div>
+  <p>bugfix растёт прямо из верхушки main, поэтому Git делает fast-forward. Итог: история — одна прямая линия, без развилок и merge-коммитов. В этом и есть главный плюс связки «rebase + merge».</p>
+</section>
+
+<!-- ============ 7 ============ -->
+<section class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 07</div><h2>Конфликт при rebase</h2></div>
+  <p class="lead">Причина та же, что и при merge: две ветки изменили одни и те же строки. Маркеры в файле тоже те же. Но есть три отличия, которые нужно знать.</p>
+
+  <h3>Отличие 1. Конфликт может появиться несколько раз</h3>
+  <p>Rebase переносит коммиты по одному. Если конфликтуют несколько коммитов, Git остановится на каждом. Подсказка Git Bash показывает прогресс: <code>(bugfix|REBASE 1/2)</code> — «переношу 1-й коммит из 2». Сообщение длинное, но в нём уже есть вся инструкция:</p>
+  <div class="term" data-path="~/report" data-br="anya-p2"><pre class="term-src">$ git rebase main
+Auto-merging doc.txt
+CONFLICT (content): Merge conflict in doc.txt
+error: could not apply 217b719... Anya: check paragraph 2
+hint: Resolve all conflicts manually, mark them as resolved with
+hint: "git add/rm &lt;conflicted_files&gt;", then run "git rebase --continue".
+hint: You can instead skip this commit: run "git rebase --skip".
+hint: To abort and get back to the state before "git rebase", run "git rebase --abort".
+Could not apply 217b719... Anya: check paragraph 2
+::br anya-p2|REBASE 1/1</pre></div>
+  <p class="muted">Перевод: «Реши конфликты вручную, отметь их через git add и выполни git rebase --continue. Можно пропустить этот коммит через --skip. Чтобы всё отменить — --abort».</p>
+
+  <h3>Отличие 2. Завершение — другой командой</h3>
+  <p>После решения конфликта <code>git commit</code> не нужен. Вместо него:</p>
+  <div class="term mini" data-path="~/report" data-br="anya-p2|REBASE 1/1"><pre class="term-src">$ git add doc.txt
+$ git rebase --continue
+[detached HEAD 6ace489] Anya: check paragraph 2
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+Successfully rebased and updated refs/heads/anya-p2.
+::br anya-p2</pre></div>
+  <p>Git сам создаст исправленную копию коммита и перейдёт к следующему. Перед этим он может открыть редактор с сообщением коммита — просто сохрани и закрой его (в Vim: <kbd>Esc</kbd>, <code>:wq</code>, <kbd>Enter</kbd>).</p>
+
+  <h3>Отличие 3. «Моё» и «чужое» меняются местами</h3>
+  <p>Во время rebase Git встаёт на main и по очереди добавляет твои коммиты сверху. Поэтому верхняя часть (HEAD) — это версия из main, а нижняя — твой переносимый коммит:</p>
+  <div class="file">
+    <div class="file-tab">doc.txt <span class="badge">конфликт при rebase</span></div>
+    <div class="file-body">
+      <div class="fl mk z-cur"><span class="n">4</span><span>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</span><span class="ann a-cur">это main — новая база</span></div>
+      <div class="fl z-cur"><span class="n">5</span><span>Paragraph 2 (checked by Borya)</span><span></span></div>
+      <div class="fl mk z-sep"><span class="n">6</span><span>=======</span><span></span></div>
+      <div class="fl z-in"><span class="n">7</span><span>Paragraph 2 (checked by Anya)</span><span></span></div>
+      <div class="fl mk z-in"><span class="n">8</span><span>&gt;&gt;&gt;&gt;&gt;&gt;&gt; 217b719 (Anya: check paragraph 2)</span><span class="ann a-in">это твой коммит</span></div>
+    </div>
+  </div>
+  <p>Это путает даже опытных разработчиков. Не угадывай, где чьё, — читай сам текст в каждой части. Подсказка: после <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code> Git пишет хеш и сообщение твоего коммита, по ним легко узнать свою часть.</p>
+
+  <h3>Три выхода из остановленного rebase</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Команда</th><th>Что делает</th><th>Когда нужна</th></tr></thead>
+    <tbody>
+      <tr><td><code>git rebase --continue</code></td><td>«Я решил конфликт, продолжай»</td><td>После исправления файла и <code>git add</code></td></tr>
+      <tr><td><code>git rebase --abort</code></td><td>Отменить всё: ветка станет как до rebase</td><td>Запутался или передумал</td></tr>
+      <tr><td><code>git rebase --skip</code></td><td>Выбросить этот коммит и идти дальше</td><td>Редко. Осторожно: изменения этого коммита пропадут</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Сравни и запомни</h3>
+  <div class="tbl cmp"><table>
+    <thead><tr><th></th><th>Конфликт при merge</th><th>Конфликт при rebase</th></tr></thead>
+    <tbody>
+      <tr><td>Подсказка Git Bash</td><td><code>(main|MERGING)</code></td><td><code>(bugfix|REBASE 1/2)</code></td></tr>
+      <tr><td>Сколько раз остановится</td><td>Один</td><td>До одного раза на каждый переносимый коммит</td></tr>
+      <tr><td>Верх (HEAD) — это</td><td>Ветка, где ты стоишь</td><td>main — новая база</td></tr>
+      <tr><td>После исправления</td><td><code>git add</code> → <code>git commit</code></td><td><code>git add</code> → <code>git rebase --continue</code></td></tr>
+      <tr><td>Отмена</td><td><code>git merge --abort</code></td><td><code>git rebase --abort</code></td></tr>
+    </tbody>
+  </table></div>
+  <div class="note curious"><div class="note-ic"><svg><use href="#i-search"/></svg></div><div><div class="note-k">Странная строка detached HEAD</div><p>Во время rebase Git может написать <code>detached HEAD</code>. Это нормально: пока идёт перенос, HEAD временно указывает прямо на коммит, а не на ветку. После завершения rebase всё вернётся на место.</p></div></div>
+</section>
+
+<!-- ============ 8 ============ -->
+<section class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 08</div><h2>Золотое правило rebase</h2></div>
+  <div class="big-rule" style="margin-top:0">
+    <span class="tag" style="background:var(--c-ref)"><svg width="14" height="14" aria-hidden="true"><use href="#i-alert"/></svg>Нельзя</span>
+    <p class="st">Не делай rebase коммитов, которые уже отправлены в общий репозиторий (<code style="font-size:.7em">git push</code>) и которыми пользуются другие.</p>
+    <p class="muted" style="position:relative;margin:0">В книге Pro Git это звучит так: «Не перемещайте коммиты, уже отправленные в публичный репозиторий».</p>
+  </div>
+  <p>Почему это опасно:</p>
+  <ol class="steps">
+    <li>Rebase заменяет твои коммиты копиями с новыми хешами (раздел 6).</li>
+    <li>У коллег остались старые коммиты, и они уже могли построить на них свою работу.</li>
+    <li>Когда вы снова обменяетесь работой, Git увидит две разные истории. Одни и те же изменения окажутся в двух экземплярах.</li>
+    <li>Чтобы отправить переписанную историю, придётся делать принудительный push. Им легко стереть чужую работу.</li>
+  </ol>
+  <figure class="dfig" id="figGolden">
+    <div class="dfig-panels">
+      <div class="dpanel"><div class="dpanel-h"><b><i></i>Твой компьютер</b><span>после rebase</span></div><div class="dpanel-body"><svg id="goldMe" role="img" aria-label="У тебя ветка bugfix: A, B, C, D, затем копии E′ и F′"></svg></div></div>
+      <div class="dpanel"><div class="dpanel-h"><b><i style="background:var(--c-alt);border-radius:50%"></i>Компьютер коллеги</b><span>до твоего rebase</span></div><div class="dpanel-body"><svg id="goldThem" role="img" aria-label="У коллеги ветка bugfix: A, B, C, затем старые E и F и его новый коммит G"></svg></div></div>
+    </div>
+    <figcaption class="dfig-cap">Одна и та же ветка bugfix, но истории уже разные: у тебя копии E′ и F′, у коллеги — старые E и F и его новый коммит G поверх них.</figcaption>
+  </figure>
+  <div class="note analogy"><div class="note-ic"><svg><use href="#i-doc"/></svg></div><div><div class="note-k">Аналогия</div><p>Нельзя переписывать страницы книги, которую уже раздали читателям. У них на руках старое издание, и страницы у вас перестанут совпадать.</p></div></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Коммиты</th><th>Можно rebase?</th></tr></thead>
+    <tbody>
+      <tr><td>Только на твоём компьютере, ещё никому не отправлены</td><td>Да</td></tr>
+      <tr><td>Отправлены в общий репозиторий, с ними работают другие</td><td>Нет — только merge</td></tr>
+      <tr><td>Не уверен</td><td>Нет — только merge</td></tr>
+    </tbody>
+  </table></div>
+  <p>Merge в этом смысле всегда безопасен: он только добавляет новые коммиты и никогда не переписывает старые.</p>
+</section>
+
+<!-- ============ 9 ============ -->
+<section class="sec" id="s9">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 09</div><h2>Merge или rebase: в чём разница</h2></div>
+  <p class="lead">Обе команды дают одинаковые файлы в итоге. Разница только в том, как выглядит история.</p>
+  <div class="pair">
+    <div class="pcard" style="--tone:var(--c-main)"><div class="pi"><svg><use href="#i-graph"/></svg></div><div><h4>Merge — черновик</h4><p>Сшивает две ветки узлом. История честная: видно, что работа шла параллельно и когда её соединили. Как черновик, где видны все линии рассуждений.</p></div></div>
+    <div class="pcard" style="--tone:var(--c-feat)"><div class="pi"><svg><use href="#i-doc"/></svg></div><div><h4>Rebase — чистовик</h4><p>Переписывает твои коммиты так, будто ты работал последовательно. История аккуратная, в одну линию, но часть правды о том, «как было», теряется.</p></div></div>
+  </div>
+  <p>Один и тот же старт — два разных результата. Переключай вкладки под схемой:</p>
+  <figure class="dfig" data-fig="compare"></figure>
+
+  <h3>Сравнительная таблица</h3>
+  <div class="tbl cmp"><table>
+    <thead><tr><th></th><th>Merge (слияние)</th><th>Rebase (перебазирование)</th></tr></thead>
+    <tbody>
+      <tr><td>Суть одной фразой</td><td>Сшить две ветки узлом</td><td>Пересадить свои коммиты на верхушку другой ветки</td></tr>
+      <tr><td>Фраза-подсказка</td><td>«Зову в гости»</td><td>«Переезжаю»</td></tr>
+      <tr><td>Где стоишь</td><td>В ветке-получателе (main)</td><td>В своей ветке (bugfix)</td></tr>
+      <tr><td>Команда</td><td><code>git merge bugfix</code></td><td><code>git rebase main</code></td></tr>
+      <tr><td>Какая ветка меняется</td><td>Та, где стоишь</td><td>Та, где стоишь</td></tr>
+      <tr><td>Новые коммиты</td><td>Один merge-коммит (при fast-forward — ни одного)</td><td>Копии всех твоих коммитов с новыми хешами</td></tr>
+      <tr><td>Старые коммиты</td><td>Остаются как были</td><td>Заменяются копиями</td></tr>
+      <tr><td>Вид истории</td><td>С развилками и узлами</td><td>Прямая линия</td></tr>
+      <tr><td>Конфликты</td><td>Решаются один раз за всё слияние</td><td>Могут возникать на каждом переносимом коммите</td></tr>
+      <tr><td>Завершить после конфликта</td><td><code>git add</code> → <code>git commit</code></td><td><code>git add</code> → <code>git rebase --continue</code></td></tr>
+      <tr><td>Отменить</td><td><code>git merge --abort</code></td><td><code>git rebase --abort</code></td></tr>
+      <tr><td>Для общих веток</td><td>Безопасно всегда</td><td>Нельзя — только для своих неопубликованных коммитов</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Что выбрать новичку</h3>
+  <ul>
+    <li>Не уверен — делай <b>merge</b>. Он никогда не переписывает историю.</li>
+    <li><b>Rebase</b> — удобный способ «подтянуть» свежий main в свою личную ветку, пока она есть только у тебя.</li>
+    <li>Ни одна команда не «лучше» другой. Команды разработчиков заранее договариваются, как работать, — следуй правилу своей команды.</li>
+  </ul>
+  <h4>Типичный сценарий работы над задачей</h4>
+  <ol class="steps">
+    <li><code>git switch -c feature</code> — создать ветку под задачу и сразу перейти в неё.</li>
+    <li>Работать и делать коммиты.</li>
+    <li>Если main за это время ушла вперёд — подтянуть её в свою ветку: <code>git rebase main</code> (если ветка только твоя) или <code>git merge main</code> (если ветка общая).</li>
+    <li>Задача готова — <code>git switch main</code>, затем <code>git merge feature</code>.</li>
+    <li><code>git branch -d feature</code> — убрать стикер.</li>
+  </ol>
+</section>
+
+<!-- ============ 10 ============ -->
+<section class="sec" id="s10">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 10</div><h2>Практика в Git Bash: весь сценарий своими руками</h2></div>
+  <p class="lead">Ты по очереди сыграешь роли Ани и Бори в одном репозитории. Каждый шаг — одна ситуация из конспекта. Вывод терминала ниже настоящий; хеши у тебя будут другими, это нормально.</p>
+
+  <h3>Перед началом: команда для просмотра графа</h3>
+  <p>Создай короткую команду, чтобы проверять себя после каждого шага. Теперь <code>git tree</code> — то же самое, что <code>git log --oneline --graph --all</code>: все ветки, по строке на коммит, граф слева.</p>
+  <div class="term mini" data-path="~/report" data-br=""><pre class="term-src">$ git config --global alias.tree "log --oneline --graph --all"</pre></div>
+  <div class="tbl"><table>
+    <thead><tr><th>Что видишь в <code>git tree</code></th><th>Что это значит</th></tr></thead>
+    <tbody>
+      <tr><td>Порядок строк</td><td>Свежие коммиты сверху, старые снизу — наоборот, чем в схемах конспекта</td></tr>
+      <tr><td><code>*</code></td><td>Коммит</td></tr>
+      <tr><td><code>|</code></td><td>Линия ветки</td></tr>
+      <tr><td><code>*</code> и под ним <code>|\</code></td><td>Merge-коммит: из него идут две линии к двум родителям</td></tr>
+      <tr><td><code>|/</code></td><td>Место, где ветка отделилась от общего предка</td></tr>
+      <tr><td><code>(HEAD -&gt; main, anya)</code></td><td>Стикеры веток на этом коммите и место, где стоит HEAD</td></tr>
+    </tbody>
+  </table></div>
+  <p>Следи и за подсказкой в скобках: <code>(main)</code> — всё спокойно, <code>(main|MERGING)</code> — идёт слияние, <code>(anya-p2|REBASE 1/1)</code> — идёт rebase, переносится 1-й коммит из 1.</p>
+  <div class="note tip"><div class="note-ic"><svg><use href="#i-spark"/></svg></div><div><div class="note-k">Как редактировать файл</div><p>Удобнее всего в Блокноте прямо из Git Bash: <code>notepad doc.txt</code>. Исправь, сохрани (<kbd>Ctrl</kbd>+<kbd>S</kbd>), закрой и вернись в терминал. Текст после <code>#</code> в командах ниже — комментарий для тебя, его можно не печатать. Флаг <code>-a</code> в <code>git commit -am</code> сразу добавляет все изменённые файлы, без отдельного <code>git add</code>.</p></div></div>
+
+  <h3>Шаг 0. Подготовка</h3>
+  <div class="term" data-path="~" data-br=""><pre class="term-src">$ mkdir report
+$ cd report
+::path ~/report
+$ git init -b main
+Initialized empty Git repository in C:/Users/student/report/.git/
+::br main
+$ printf "Paragraph 1\nParagraph 2\n" &gt; doc.txt
+$ git add doc.txt
+$ git commit -m "Initial document"
+[main (root-commit) f600372] Initial document
+ 1 file changed, 2 insertions(+)
+ create mode 100644 doc.txt</pre></div>
+  <p>Флаг <code>-b main</code> сразу называет главную ветку main. Если у тебя она называется master, ничего страшного — просто пиши master вместо main.</p>
+
+  <h3>Шаг 1. Fast-forward: Аня дописывает текст</h3>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git switch -c anya
+Switched to a new branch 'anya'
+::br anya
+$ notepad doc.txt        # после Paragraph 1 добавь строку: Lorem ipsum (Anya)
+$ git commit -am "Anya: add text after paragraph 1"
+[anya 8e3f1b4] Anya: add text after paragraph 1
+ 1 file changed, 1 insertion(+)
+$ git switch main
+Switched to branch 'main'
+::br main
+$ git merge anya
+Updating f600372..8e3f1b4
+Fast-forward
+ doc.txt | 1 +
+ 1 file changed, 1 insertion(+)
+$ git tree
+* 8e3f1b4 (HEAD -&gt; main, anya) Anya: add text after paragraph 1
+* f600372 Initial document</pre></div>
+  <p>Одна прямая линия: main и anya стоят на одном коммите.</p>
+
+  <h3>Шаг 2. Настоящее слияние: работают оба</h3>
+  <p>Боря в своей ветке дописывает конец документа. Тем временем в main появляется заголовок.</p>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git switch -c borya
+Switched to a new branch 'borya'
+::br borya
+$ notepad doc.txt        # в самый конец добавь строку: Velit scelerisque (Borya)
+$ git commit -am "Borya: add text at the end"
+[borya 551db31] Borya: add text at the end
+ 1 file changed, 1 insertion(+)
+$ git switch main
+Switched to branch 'main'
+::br main
+$ notepad doc.txt        # в самое начало добавь строку: Document
+$ git commit -am "Add title"
+[main 7357d17] Add title
+ 1 file changed, 1 insertion(+)
+$ git merge borya --no-edit
+Auto-merging doc.txt
+Merge made by the 'ort' strategy.
+ doc.txt | 1 +
+ 1 file changed, 1 insertion(+)
+$ git tree
+*   9c91c35 (HEAD -&gt; main) Merge branch 'borya'
+|\
+| * 551db31 (borya) Borya: add text at the end
+* | 7357d17 Add title
+|/
+* 8e3f1b4 (anya) Anya: add text after paragraph 1
+* f600372 Initial document</pre></div>
+
+  <h3>Шаг 3. Конфликт при слиянии</h3>
+  <p>Аня в своей ветке переименовывает заголовок. Боря прямо в main — тоже, но по-другому.</p>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git switch -c anya-title
+Switched to a new branch 'anya-title'
+::br anya-title
+$ notepad doc.txt        # замени Document на: Annual Report
+$ git commit -am "Anya: rename title"
+[anya-title e3406fa] Anya: rename title
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git switch main
+Switched to branch 'main'
+::br main
+$ notepad doc.txt        # замени Document на: Final Report
+$ git commit -am "Borya: rename title"
+[main 4537d17] Borya: rename title
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git merge anya-title
+Auto-merging doc.txt
+CONFLICT (content): Merge conflict in doc.txt
+Automatic merge failed; fix conflicts and then commit the result.
+::br main|MERGING
+$ notepad doc.txt        # вместо 5 строк с маркерами оставь: Final Annual Report
+$ git add doc.txt
+$ git commit -m "Merge anya-title: resolve title conflict"
+[main a2a66d5] Merge anya-title: resolve title conflict
+::br main</pre></div>
+
+  <h3>Шаг 4. Rebase без конфликта</h3>
+  <p>Аня делает два коммита в новой ветке. Тем временем Боря правит первый абзац в main.</p>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git switch -c anya-footer
+Switched to a new branch 'anya-footer'
+::br anya-footer
+$ notepad doc.txt        # в конец добавь: Quis risus (Anya)
+$ git commit -am "Anya: add footer"
+[anya-footer b7e86c3] Anya: add footer
+ 1 file changed, 1 insertion(+)
+$ notepad doc.txt        # в конец добавь: The End (Anya)
+$ git commit -am "Anya: add ending"
+[anya-footer 21e76bd] Anya: add ending
+ 1 file changed, 1 insertion(+)
+$ git switch main
+Switched to branch 'main'
+::br main
+$ notepad doc.txt        # Paragraph 1 замени на: Paragraph 1 (edited by Borya)
+$ git commit -am "Borya: edit paragraph 1"
+[main c3445d8] Borya: edit paragraph 1
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git tree
+* 21e76bd (anya-footer) Anya: add ending
+* b7e86c3 Anya: add footer
+| * c3445d8 (HEAD -&gt; main) Borya: edit paragraph 1
+|/
+*   a2a66d5 Merge anya-title: resolve title conflict
+…  (вывод сокращён)
+$ git switch anya-footer
+Switched to branch 'anya-footer'
+::br anya-footer
+$ git rebase main
+Successfully rebased and updated refs/heads/anya-footer.
+$ git tree
+* 8544538 (HEAD -&gt; anya-footer) Anya: add ending
+* e427cf5 Anya: add footer
+* c3445d8 (main) Borya: edit paragraph 1
+*   a2a66d5 Merge anya-title: resolve title conflict
+…  (вывод сокращён)
+$ git switch main
+Switched to branch 'main'
+::br main
+$ git merge anya-footer
+Updating c3445d8..8544538
+Fast-forward
+ doc.txt | 2 ++
+ 1 file changed, 2 insertions(+)</pre></div>
+  <p>Обрати внимание: после rebase хеши коммитов Ани стали другими (было <code>b7e86c3</code> и <code>21e76bd</code>), а развилка исчезла.</p>
+
+  <h3>Шаг 5. Rebase с конфликтом</h3>
+  <p>Аня и Боря оба правят второй абзац.</p>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git switch -c anya-p2
+Switched to a new branch 'anya-p2'
+::br anya-p2
+$ notepad doc.txt        # Paragraph 2 замени на: Paragraph 2 (checked by Anya)
+$ git commit -am "Anya: check paragraph 2"
+[anya-p2 217b719] Anya: check paragraph 2
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git switch main
+Switched to branch 'main'
+::br main
+$ notepad doc.txt        # Paragraph 2 замени на: Paragraph 2 (checked by Borya)
+$ git commit -am "Borya: check paragraph 2"
+[main ca167e3] Borya: check paragraph 2
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git switch anya-p2
+Switched to branch 'anya-p2'
+::br anya-p2
+$ git rebase main
+Auto-merging doc.txt
+CONFLICT (content): Merge conflict in doc.txt
+error: could not apply 217b719... Anya: check paragraph 2
+…  (подсказки hint: как в разделе 7)
+::br anya-p2|REBASE 1/1
+$ notepad doc.txt        # оставь одну строку: Paragraph 2 (checked by Anya and Borya)
+$ git add doc.txt
+$ git rebase --continue  # если откроется Vim: Esc, :wq, Enter
+[detached HEAD 6ace489] Anya: check paragraph 2
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+Successfully rebased and updated refs/heads/anya-p2.
+::br anya-p2
+$ git switch main
+Switched to branch 'main'
+::br main
+$ git merge anya-p2
+Updating ca167e3..6ace489
+Fast-forward
+ doc.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git tree
+* 6ace489 (HEAD -&gt; main, anya-p2) Anya: check paragraph 2
+* ca167e3 Borya: check paragraph 2
+* 8544538 (anya-footer) Anya: add ending
+* e427cf5 Anya: add footer
+…  (вывод сокращён)</pre></div>
+
+  <h3>Шаг 6. Уборка</h3>
+  <p>Вся работа уже в main, стикеры больше не нужны.</p>
+  <div class="term" data-path="~/report" data-br="main"><pre class="term-src">$ git branch -d anya borya anya-title anya-footer anya-p2
+Deleted branch anya (was 8e3f1b4).
+Deleted branch borya (was 551db31).
+Deleted branch anya-title (was e3406fa).
+Deleted branch anya-footer (was 8544538).
+Deleted branch anya-p2 (was 6ace489).
+$ cat doc.txt
+Final Annual Report
+Paragraph 1 (edited by Borya)
+Lorem ipsum (Anya)
+Paragraph 2 (checked by Anya and Borya)
+Velit scelerisque (Borya)
+Quis risus (Anya)
+The End (Anya)</pre></div>
+  <p>Итоговый документ собрал работу обоих — ровно то, что Аня и Боря хотели сделать в Word.</p>
+</section>
+
+<!-- ============ 11 ============ -->
+<section class="sec" id="s11">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 11</div><h2>То же самое в Visual Studio</h2></div>
+  <p class="lead">Visual Studio выполняет те же команды Git, только через кнопки и меню. Главное правило здесь то же: сначала встань в нужную ветку, потом выбери действие с другой веткой.</p>
+  <p class="muted">Названия пунктов даны для английского интерфейса Visual Studio 2022; в Visual Studio 2026 Git-инструменты устроены так же. Окна ниже — упрощённые схемы, а не скриншоты.</p>
+
+  <h3>11.1. Где что находится</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Что</th><th>Как открыть</th><th>Зачем</th></tr></thead>
+    <tbody>
+      <tr><td>Меню <b>Git</b></td><td>Верхнее меню студии</td><td>Все команды Git в одном месте</td></tr>
+      <tr><td>Окно <b>Git Changes</b></td><td>View → Git Changes (<kbd>Ctrl</kbd>+<kbd>0</kbd>, <kbd>Ctrl</kbd>+<kbd>G</kbd>)</td><td>Коммиты, список файлов с конфликтами, кнопки «продолжить» и «отменить»</td></tr>
+      <tr><td>Окно <b>Git Repository</b></td><td>Git → Manage Branches или View → Git Repository (<kbd>Ctrl</kbd>+<kbd>0</kbd>, <kbd>Ctrl</kbd>+<kbd>R</kbd>)</td><td>Ветки слева, граф коммитов справа; отсюда делают merge и rebase</td></tr>
+      <tr><td>Переключатель веток</td><td>Строка состояния, внизу справа</td><td>Показывает текущую ветку (где HEAD) и быстро переключает</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>11.2. Ветки: создать, перейти, закоммитить</h3>
+  <p><b>Создать ветку:</b> Git → New Branch. В окне Create a new branch введи имя (Branch name: <code>bugfix</code>), в поле Based on выбери <code>main</code>, оставь галочку Checkout branch и нажми Create.</p>
+  <ul>
+    <li>С галочкой Checkout branch это <code>git switch -c bugfix</code> — создать и сразу перейти.</li>
+    <li>Без галочки это <code>git branch bugfix</code> — только приклеить стикер.</li>
+    <li>Другой путь: в окне Git Repository правый клик по main → New Local Branch From.</li>
+  </ul>
+  <p><b>Перейти в ветку</b> (<code>git switch main</code>): дважды щёлкни по ветке в списке Branches окна Git Repository или выбери её в переключателе в строке состояния. Текущая ветка в списке выделена жирным.</p>
+  <p><b>Сделать коммит</b> (<code>git commit -am</code>): в окне Git Changes напиши сообщение и нажми Commit All.</p>
+
+  <h3>11.3. Граф веток</h3>
+  <p>Граф живёт в окне Git Repository, справа от списка веток. Это та же картинка, что и <code>git tree</code>, только в цвете. Он делится на три части: <b>Incoming</b> — коммиты коллег на сервере, которых у тебя ещё нет; <b>Outgoing</b> — твои коммиты, ещё не отправленные на сервер; <b>Local History</b> — вся остальная история.</p>
+  <p><b>Как увидеть несколько веток сразу.</b> По умолчанию видна история одной ветки. Наведи мышь на ветку в списке — появится значок глаза (Toggle Branch in History). Включи его для main и для bugfix: линии веток раскрасятся в разные цвета, рядом с коммитами появятся ярлыки веток. Эта функция есть начиная с Visual Studio 2022 версии 17.7.</p>
+  <ul>
+    <li>каждая строка — один коммит, свежие сверху (как в <code>git tree</code>);</li>
+    <li>точка на цветной линии — коммит этой ветки; линия раздваивается — развилка;</li>
+    <li>две линии сходятся в одну точку — merge-коммит;</li>
+    <li>ярлыки с именами — стикеры веток, как <code>(main)</code> в терминале;</li>
+    <li>щелчок по коммиту открывает детали: сообщение, автора и изменённые файлы.</li>
+  </ul>
+  <div class="note warn"><div class="note-ic"><svg><use href="#i-alert"/></svg></div><div><div class="note-k">Кнопка Show First Parent Only</div><p>Она на панели над графом и прячет боковые ветки. Пока учишься, держи её выключенной, иначе развилок не будет видно.</p></div></div>
+
+  <h3>11.4. Merge и rebase: читай пункт меню как предложение</h3>
+  <p>Visual Studio пишет пункты меню целыми предложениями. Переключи, в какой ветке ты стоишь, и посмотри, как меняется меню по правому клику на <em>другой</em> ветке:</p>
+  <div class="vs" id="vsMock">
+    <div class="vs-ctl"><span>Ты стоишь в ветке:</span>
+      <div class="seg" role="radiogroup" aria-label="Текущая ветка">
+        <button type="button" role="radio" aria-checked="true" data-cur="main">main</button>
+        <button type="button" role="radio" aria-checked="false" data-cur="bugfix">bugfix</button>
+      </div>
+    </div>
+    <div class="vs-win">
+      <div class="vs-title"><i></i><span>Git Repository — report</span><span>схема окна</span></div>
+      <div class="vs-body">
+        <div class="vs-side">
+          <div class="vs-filter">Filter branches</div>
+          <div class="vs-grp">▾ Branches</div>
+          <div class="vs-br" data-br="main"><svg><use href="#i-br"/></svg><span>main</span><svg class="eye"><use href="#i-eye"/></svg></div>
+          <div class="vs-br" data-br="bugfix"><svg><use href="#i-br"/></svg><span>bugfix</span><svg class="eye"><use href="#i-eye"/></svg></div>
+          <div class="vs-grp">▸ Remotes</div>
+          <div class="vs-menu" id="vsMenu" role="presentation"></div>
+        </div>
+        <div class="vs-main">
+          <div class="vs-tools"><span>Show First Parent Only: выкл.</span><span>Show Local Branches</span><span>Show Tags</span></div>
+          <div class="vs-hh">Local History</div>
+          <div class="vs-hist" id="vsHist"></div>
+        </div>
+      </div>
+    </div>
+    <div class="vs-explain" id="vsExplain"></div>
+  </div>
+
+  <h4>Merge в Visual Studio</h4>
+  <ol class="steps">
+    <li>В окне Git Repository дважды щёлкни по main — ты встал в main (<code>git switch main</code>).</li>
+    <li>Правый клик по bugfix → <b>Merge 'bugfix' into 'main'</b> (<code>git merge bugfix</code>).</li>
+    <li>Если Visual Studio попросит подтвердить — согласись.</li>
+    <li>Посмотри на граф. При fast-forward main просто сдвинется. При настоящем слиянии появится точка, в которую сходятся две линии.</li>
+  </ol>
+  <h4>Rebase в Visual Studio</h4>
+  <ol class="steps">
+    <li>Дважды щёлкни по bugfix (<code>git switch bugfix</code>).</li>
+    <li>Правый клик по main → <b>Rebase 'bugfix' onto 'main'</b> (<code>git rebase main</code>) — «пересадить bugfix на main».</li>
+    <li>На графе коммиты bugfix встанут после последнего коммита main, в одну линию.</li>
+    <li>Чтобы работа попала в main: двойной клик по main, правый клик по bugfix → Merge 'bugfix' into 'main'. Будет fast-forward.</li>
+  </ol>
+  <div class="note rule"><div class="note-ic"><svg><use href="#i-pin"/></svg></div><div><div class="note-k">Правило для Visual Studio</div><p>Двойной клик — куда встать. Правый клик — по другой ветке. В терминале то же самое: <code>git switch</code> — куда встать, а в команде merge или rebase — другая ветка.</p></div></div>
+
+  <h3>11.5. Конфликты в Visual Studio: Merge Editor</h3>
+  <ol class="steps">
+    <li>Visual Studio сообщит, что слияние или rebase остановлено из-за конфликтов. В окне Git Changes появится раздел <b>Unmerged Changes</b> со списком файлов.</li>
+    <li>Дважды щёлкни по файлу (или правый клик → Open Merge Editor). Откроется <b>Merge Editor</b> с тремя панелями:
+      <ul>
+        <li><b>Incoming</b> — версия из вливаемой ветки (в терминале это часть ниже <code>=======</code>);</li>
+        <li><b>Current</b> — версия из ветки, где ты стоишь (часть под <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt; HEAD</code>);</li>
+        <li><b>Result</b> — итог, который попадёт в файл.</li>
+      </ul>
+    </li>
+    <li>Отметь галочками нужные строки. Можно взять всё с одной стороны кнопками Take Incoming (<kbd>F10</kbd>) или Take Current (<kbd>F11</kbd>) либо дописать текст вручную в Result.</li>
+    <li>Нажми <b>Accept Merge</b> — это то же, что сохранить файл и сделать <code>git add</code>.</li>
+    <li>Заверши операцию в окне Git Changes: при merge введи сообщение и нажми <b>Commit Staged</b> (<code>git commit</code>), при rebase нажми <b>Continue</b> (<code>git rebase --continue</code>).</li>
+    <li>Передумал — нажми <b>Abort</b> (<code>--abort</code>), и всё вернётся как было.</li>
+  </ol>
+  <p>Попробуй на схеме Merge Editor — тот же конфликт с заголовком, что в разделе 5:</p>
+  <div class="me" id="meMock">
+    <div class="me-top">
+      <div class="me-pane">
+        <div class="me-h"><b>Incoming:</b><span>anya-title</span><span class="sp"></span><button class="me-btn" type="button" data-take="in">Take Incoming · F10</button></div>
+        <div class="me-code">
+          <label class="me-line conf in"><input type="checkbox" data-pick="in" aria-label="Взять строку Incoming">Annual Report</label>
+          <div class="me-line"><span class="cb"></span>Paragraph 1</div>
+          <div class="me-line"><span class="cb"></span>Lorem ipsum (Anya)</div>
+          <div class="me-line"><span class="cb"></span>Paragraph 2</div>
+        </div>
+      </div>
+      <div class="me-pane">
+        <div class="me-h"><b>Current:</b><span>main</span><span class="sp"></span><button class="me-btn" type="button" data-take="cur">Take Current · F11</button></div>
+        <div class="me-code">
+          <label class="me-line conf cur"><input type="checkbox" data-pick="cur" aria-label="Взять строку Current">Final Report</label>
+          <div class="me-line"><span class="cb"></span>Paragraph 1</div>
+          <div class="me-line"><span class="cb"></span>Lorem ipsum (Anya)</div>
+          <div class="me-line"><span class="cb"></span>Paragraph 2</div>
+        </div>
+      </div>
+    </div>
+    <div class="me-pane" style="border-bottom:0">
+      <div class="me-h"><b>Result:</b><span>doc.txt</span><span class="sp"></span><button class="me-btn" type="button" id="meReset">Сбросить</button><button class="me-btn acc" type="button" id="meAccept" disabled>Accept Merge</button></div>
+      <div class="me-code" id="meResult"></div>
+    </div>
+    <div class="me-status" id="meStatus" aria-live="polite">Отметь галочкой нужную строку или нажми Take Incoming / Take Current.</div>
+  </div>
+  <p>При rebase помни отличие 3 из раздела 7: Current — это main (новая база), а Incoming — твой переносимый коммит. Расположение панелей Incoming и Current можно поменять в настройках редактора, поэтому ориентируйся на их названия, а не на то, где они стоят.</p>
+
+  <h3>11.6. Удалить ветку</h3>
+  <p>Правый клик по ветке в окне Git Repository → Delete (<code>git branch -d bugfix</code>).</p>
+
+  <h3>11.7. Git Bash и Visual Studio: таблица соответствий</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Действие</th><th>Git Bash</th><th>Visual Studio</th></tr></thead>
+    <tbody>
+      <tr><td>Создать ветку и перейти в неё</td><td><code>git switch -c bugfix</code></td><td>Git → New Branch, галочка Checkout branch</td></tr>
+      <tr><td>Перейти в ветку</td><td><code>git switch main</code></td><td>Двойной клик по ветке или переключатель в строке состояния</td></tr>
+      <tr><td>Сделать коммит</td><td><code>git commit -am "..."</code></td><td>Git Changes → Commit All</td></tr>
+      <tr><td>Посмотреть граф</td><td><code>git log --oneline --graph --all</code></td><td>Git Repository + значок глаза у нужных веток</td></tr>
+      <tr><td>Слить bugfix в main</td><td><code>git switch main</code>, затем <code>git merge bugfix</code></td><td>Двойной клик по main, правый клик по bugfix → Merge 'bugfix' into 'main'</td></tr>
+      <tr><td>Перебазировать bugfix на main</td><td><code>git switch bugfix</code>, затем <code>git rebase main</code></td><td>Двойной клик по bugfix, правый клик по main → Rebase 'bugfix' onto 'main'</td></tr>
+      <tr><td>Отметить конфликт решённым</td><td>Правка файла, затем <code>git add</code></td><td>Merge Editor → Accept Merge</td></tr>
+      <tr><td>Завершить merge после конфликта</td><td><code>git commit</code></td><td>Commit Staged</td></tr>
+      <tr><td>Продолжить rebase</td><td><code>git rebase --continue</code></td><td>Continue</td></tr>
+      <tr><td>Отменить merge или rebase</td><td><code>git merge --abort</code> / <code>git rebase --abort</code></td><td>Abort</td></tr>
+      <tr><td>Удалить ветку</td><td><code>git branch -d bugfix</code></td><td>Правый клик по ветке → Delete</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<!-- ============ 12 ============ -->
+<section class="sec" id="s12">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 12</div><h2>Шпаргалка</h2></div>
+  <p class="lead">Три правила, которые спасают от страха, и все команды раздела на одной странице. Нажми на карточку, чтобы скопировать команду.</p>
+  <div class="rules3">
+    <div><span>1</span><b>Git меняет только ветку, на которой ты стоишь</b><p>Сначала <code>git switch</code>, потом merge или rebase.</p></div>
+    <div><span>2</span><b>Конфликт — не поломка, а вопрос</b><p>И у него всегда есть кнопка отмены: <code>--abort</code>.</p></div>
+    <div><span>3</span><b>Rebase — только для своих неопубликованных коммитов</b><p>Не уверен — делай merge.</p></div>
+  </div>
+  <div id="cheats"></div>
+  <h3>Словарик</h3>
+  <dl class="gloss">
+    <div><dt>Слияние (merge)</dt><dd>Добавить работу другой ветки в текущую.</dd></div>
+    <div><dt>Перебазирование (rebase)</dt><dd>Перенести свои коммиты на верхушку другой ветки, то есть создать их копии.</dd></div>
+    <div><dt>Fast-forward (перемотка вперёд)</dt><dd>Слияние без нового коммита: ветка просто сдвигается вперёд.</dd></div>
+    <div><dt>Merge-коммит</dt><dd>Коммит с двумя родителями — «узел» слияния.</dd></div>
+    <div><dt>Трёхстороннее слияние</dt><dd>Сравнение трёх версий: общего предка и двух верхушек веток.</dd></div>
+    <div><dt>Общий предок</dt><dd>Последний коммит, который есть в обеих ветках, — точка развилки.</dd></div>
+    <div><dt>Конфликт</dt><dd>Обе ветки изменили одно место по-разному, и Git просит выбрать.</dd></div>
+    <div><dt>Маркеры конфликта</dt><dd>Строки <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code>, <code>=======</code>, <code>&gt;&gt;&gt;&gt;&gt;&gt;&gt;</code>, которые Git вставляет в файл.</dd></div>
+    <div><dt>HEAD</dt><dd>Метка «Вы находитесь здесь». Обычно указывает на текущую ветку.</dd></div>
+    <div><dt>Detached HEAD</dt><dd>HEAD указывает прямо на коммит, а не на ветку. Временно бывает во время rebase.</dd></div>
+    <div><dt>Current / Incoming</dt><dd>В Visual Studio: версия текущей ветки / версия из вливаемой ветки.</dd></div>
+    <div><dt>Стикер ветки</dt><dd>Наш образ ветки: имя, приклеенное к коммиту, которое двигается вперёд при новых коммитах.</dd></div>
+  </dl>
+</section>
+
+<!-- ============ 13 ============ -->
+<section class="sec" id="s13">
+  <div class="sec-h"><div class="sec-n"><i></i>РАЗДЕЛ 13</div><h2>Проверь себя</h2></div>
+  <p class="lead">Десять вопросов по конспекту. Выбери ответ — сразу увидишь, прав ли ты и почему.</p>
+  <div class="quiz-score"><b id="qScore">0 / 10</b><div class="qbar"><i id="qBar"></i></div><button class="qreset" id="qReset" type="button">Заново</button></div>
+  <div id="quiz"></div>
+</section>
+
+<section class="sec" id="s14">
+  <div class="sec-h"><div class="sec-n"><i></i>ИСТОЧНИКИ</div><h2>Что почитать дальше</h2></div>
+  <ul class="src">
+    <li><a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%9E%D1%81%D0%BD%D0%BE%D0%B2%D1%8B-%D0%B2%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D1%8F-%D0%B8-%D1%81%D0%BB%D0%B8%D1%8F%D0%BD%D0%B8%D1%8F" target="_blank" rel="noopener">Pro Git: Основы ветвления и слияния</a> <span>— на русском</span></li>
+    <li><a href="https://git-scm.com/book/ru/v2/%D0%92%D0%B5%D1%82%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B5-%D0%B2-Git-%D0%9F%D0%B5%D1%80%D0%B5%D0%B1%D0%B0%D0%B7%D0%B8%D1%80%D0%BE%D0%B2%D0%B0%D0%BD%D0%B8%D0%B5" target="_blank" rel="noopener">Pro Git: Перебазирование</a> <span>— на русском, там же «Опасности перемещения»</span></li>
+    <li><a href="https://learn.microsoft.com/en-us/visualstudio/version-control/git-manage-repository" target="_blank" rel="noopener">Microsoft Learn: Manage Git repos in Visual Studio</a> <span>— merge и rebase в окне Git Repository</span></li>
+    <li><a href="https://learn.microsoft.com/en-us/visualstudio/version-control/git-browse-repository" target="_blank" rel="noopener">Microsoft Learn: Browse Git repositories and compare branches</a> <span>— граф и несколько веток сразу</span></li>
+    <li><a href="https://learn.microsoft.com/en-us/visualstudio/version-control/git-resolve-conflicts" target="_blank" rel="noopener">Microsoft Learn: Resolve merge conflicts in Visual Studio</a> <span>— Merge Editor</span></li>
+    <li><a href="https://learn.microsoft.com/en-us/azure/devops/repos/git/rebase" target="_blank" rel="noopener">Microsoft Learn: Apply changes with rebase</a> <span>— rebase в Visual Studio и предупреждения</span></li>
+  </ul>
+  <p class="muted" style="margin-top:14px">Весь вывод терминала в конспекте получен реальным прогоном сценария из раздела 10 на Git 2.43.</p>
+</section>
+
+  </main>
+</div>
+
+<footer class="foot"><div class="foot-in"><span>Слияние и перебазирование в Git · конспект для начинающих</span><span>Правило на память: git меняет только ветку, на которой ты стоишь.</span></div></footer>
+
+<div class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-bg" data-close></div>
+  <div class="drawer-panel" role="dialog" aria-modal="true" aria-label="Содержание">
+    <div class="drawer-top"><div class="toc-title" style="margin:0">История конспекта</div><button class="icon-btn" type="button" data-close aria-label="Закрыть содержание"><svg><use href="#i-x"/></svg></button></div>
+    <ol class="toc-list" id="tocM"></ol>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+'use strict';
+var root=document.documentElement;
+var $=function(s,c){return (c||document).querySelector(s)};
+var $$=function(s,c){return Array.prototype.slice.call((c||document).querySelectorAll(s))};
+var mqDark=window.matchMedia('(prefers-color-scheme: dark)');
+var mqReduce=window.matchMedia('(prefers-reduced-motion: reduce)');
+function reduce(){return mqReduce.matches}
+
+/* ================= THEME ================= */
+var KEY='gitlec-theme';
+var mode=(function(){try{var t=localStorage.getItem(KEY);return (t==='light'||t==='dark')?t:'system'}catch(e){return 'system'}})();
+var bulb=$('#bulb'), autoBtn=$('#autoTheme');
+function eff(m){return m==='system'?(mqDark.matches?'dark':'light'):m}
+function syncTheme(){
+  var e=eff(mode);
+  bulb.setAttribute('aria-label',e==='light'?'Выключить свет: включить тёмную тему':'Включить свет: включить светлую тему');
+  bulb.title=e==='light'?'Выключить свет (тёмная тема)':'Включить свет (светлая тема)';
+  autoBtn.setAttribute('aria-pressed',mode==='system'?'true':'false');
+  autoBtn.title=mode==='system'?'Сейчас тема как в системе':'Вернуть тему как в системе';
+}
+function commitMode(m){
+  mode=m;
+  if(m==='system')root.removeAttribute('data-theme');else root.setAttribute('data-theme',m);
+  try{if(m==='system')localStorage.removeItem(KEY);else localStorage.setItem(KEY,m)}catch(e){}
+  syncTheme();
+}
+function setMode(m,from){
+  var before=eff(mode),after=eff(m);
+  if(before===after){commitMode(m);return}
+  bulb.classList.remove('on-anim','off-anim');void bulb.offsetWidth;
+  bulb.classList.add(after==='light'?'on-anim':'off-anim');
+  if(document.startViewTransition&&!reduce()){
+    var r=(from||bulb).getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+    var R=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+    var vt=document.startViewTransition(function(){commitMode(m)});
+    vt.ready.then(function(){
+      root.animate({clipPath:['circle(0px at '+x+'px '+y+'px)','circle('+R+'px at '+x+'px '+y+'px)']},{duration:700,easing:'cubic-bezier(.65,0,.35,1)',pseudoElement:'::view-transition-new(root)'});
+    }).catch(function(){});
+  }else commitMode(m);
+}
+bulb.addEventListener('click',function(){setMode(eff(mode)==='light'?'dark':'light',bulb)});
+bulb.addEventListener('animationend',function(e){if(e.target===bulb.querySelector('svg'))bulb.classList.remove('on-anim','off-anim')});
+autoBtn.addEventListener('click',function(){if(mode!=='system')setMode('system',autoBtn)});
+var onSys=function(){if(mode==='system')syncTheme()};
+if(mqDark.addEventListener)mqDark.addEventListener('change',onSys);else if(mqDark.addListener)mqDark.addListener(onSys);
+syncTheme();
+requestAnimationFrame(function(){requestAnimationFrame(function(){root.classList.remove('preload')})});
+
+/* ================= TOAST / COPY ================= */
+var toast=$('#toast'),toastT;
+function say(msg){toast.textContent=msg;toast.classList.add('show');clearTimeout(toastT);toastT=setTimeout(function(){toast.classList.remove('show')},1600)}
+function copyText(text){
+  function fallback(){var ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();var ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(ta);say(ok?'Скопировано':'Не удалось скопировать — выдели текст вручную')}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){say('Скопировано')},fallback)}else fallback();
+}
+
+/* ================= TOC / PROGRESS ================= */
+var tocM=$('#tocM');tocM.innerHTML=$('#toc').innerHTML;
+var drawer=$('#drawer'),tocBtn=$('#tocBtn');
+function openDrawer(o){drawer.classList.toggle('open',o);drawer.setAttribute('aria-hidden',o?'false':'true');tocBtn.setAttribute('aria-expanded',o?'true':'false');if(o){var a=$('a.is-active',tocM)||$('a',tocM);a&&a.focus()}else tocBtn.focus()}
+tocBtn.addEventListener('click',function(){openDrawer(true)});
+drawer.addEventListener('click',function(e){if(e.target.closest('[data-close]')||e.target.closest('a'))openDrawer(false)});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&drawer.classList.contains('open'))openDrawer(false)});
+[$('#toc'),tocM].forEach(function(list){
+  var prog=document.createElement('span');prog.className='toc-prog';list.appendChild(prog);
+  var ring=document.createElement('span');ring.className='toc-ring';list.appendChild(ring);
+});
+var secIds=$$('#toc a').map(function(a){return a.getAttribute('href').slice(1)});
+var secs=secIds.map(function(id){return document.getElementById(id)});
+var progress=$('#progress'),current=null;
+function setActive(id){
+  if(id===current)return;current=id;
+  [$('#toc'),tocM].forEach(function(list){
+    var links=$$('a',list),idx=secIds.indexOf(id),act=null;
+    links.forEach(function(a,i){a.classList.toggle('is-active',i===idx);a.classList.toggle('done',i<idx);if(i===idx)act=a;if(i===idx)a.setAttribute('aria-current','true');else a.removeAttribute('aria-current')});
+    var ring=$('.toc-ring',list),prog=$('.toc-prog',list);
+    if(act){var y=act.offsetTop+act.offsetHeight/2;ring.style.transform='translateY('+(y-9)+'px)';ring.classList.add('on');prog.style.height=Math.max(0,y-12)+'px'}
+    else{ring.classList.remove('on');prog.style.height='0px'}
+  });
+}
+var ticking=false;
+function onScroll(){
+  if(ticking)return;ticking=true;
+  requestAnimationFrame(function(){
+    ticking=false;
+    var h=document.documentElement,max=h.scrollHeight-h.clientHeight,p=max>0?h.scrollTop/max:0;
+    progress.style.transform='scaleX('+p+')';
+    var line=innerHeight*0.32,id=null;
+    for(var i=0;i<secs.length;i++){if(secs[i]&&secs[i].getBoundingClientRect().top<=line)id=secIds[i]}
+    setActive(id);
+  });
+}
+addEventListener('scroll',onScroll,{passive:true});addEventListener('resize',function(){current=null;onScroll()});onScroll();
+
+/* ================= SVG DIAGRAM ENGINE ================= */
+var NS='http://www.w3.org/2000/svg';
+function S(tag,attrs,parent){var n=document.createElementNS(NS,tag);if(attrs)for(var k in attrs)n.setAttribute(k,attrs[k]);if(parent)parent.appendChild(n);return n}
+function T(tag,attrs,parent,text){var n=S(tag,attrs,parent);n.textContent=text;return n}
+function pop(el){if(reduce())return;el.classList.add('pop');el.addEventListener('animationend',function h(){el.classList.remove('pop');el.removeEventListener('animationend',h)})}
+function Keyed(layer){this.layer=layer;this.map=new Map()}
+Keyed.prototype.sync=function(list,create,update){
+  var self=this,seen=new Set();
+  list.forEach(function(it){
+    seen.add(it.key);var n=self.map.get(it.key),fresh=false;
+    if(!n){n=create(it);self.layer.appendChild(n);self.map.set(it.key,n);fresh=true}
+    n._out=false;update(n,it,fresh);
+  });
+  this.map.forEach(function(n,k){
+    if(!seen.has(k)&&!n._out){n._out=true;n.classList.add('out');setTimeout(function(){if(n._out){n.remove();self.map.delete(k)}},460)}
+  });
+};
+function cm(id,col,row,p,k,s){return {id:id,col:col,row:row,p:p||[],k:k||'m',s:s||''}}
+function rf(n,at,side){return {n:n,at:at,side:side||'t'}}
+function ln(row,n,k){return {row:row,n:n,k:k||'m'}}
+function headOf(s){if(!s.head)return null;var r=(s.refs||[]).filter(function(x){return x.n===s.head})[0];if(!r)return null;return s.commits.filter(function(c){return c.id===r.at})[0]||null}
+function setD(p,d){p.setAttribute('d',d);try{p.style.d='path("'+d+'")'}catch(e){}}
+
+/* ---- left panel: git graph (Mermaid-like) ---- */
+function GitGraph(svg,scenes,opt){
+  this.svg=svg;var hasLanes=scenes.some(function(s){return s.lanes&&s.lanes.length});
+  var headTop=scenes.some(function(s){var h=headOf(s);return h&&h.row===0});
+  this.o=Object.assign({colW:56,rowH:66,top:headTop?44:24,padL:hasLanes?88:14},opt||{});
+  var mc=0,mr=0,hb=false,self=this;
+  scenes.forEach(function(s){s.commits.forEach(function(c){mc=Math.max(mc,c.col);mr=Math.max(mr,c.row)})});
+  scenes.forEach(function(s){var h=headOf(s);if(h&&h.row===mr&&mr>0)hb=true});
+  this.W=this.x(mc)+30;
+  var H=this.y(mr)+(hb?62:38);
+  svg.setAttribute('viewBox','0 0 '+this.W+' '+H);
+  this.L=new Keyed(S('g',{},svg));this.E=new Keyed(S('g',{},svg));this.N=new Keyed(S('g',{},svg));this.H=new Keyed(S('g',{},svg));
+}
+GitGraph.prototype.x=function(c){return this.o.padL+22+c*this.o.colW};
+GitGraph.prototype.y=function(r){return this.o.top+r*this.o.rowH};
+GitGraph.prototype.path=function(a,b){
+  var cw=this.o.colW,x1=this.x(a.col),y1=this.y(a.row),x2=this.x(b.col),y2=this.y(b.row);
+  if(b.row<a.row){var xs=x2-cw;return 'M'+x1+' '+y1+' L'+Math.max(xs,x1)+' '+y1+' C'+(xs+cw*.55)+' '+y1+' '+(x2-cw*.55)+' '+y2+' '+x2+' '+y2}
+  var xe=x1+cw;
+  return 'M'+x1+' '+y1+' C'+(x1+cw*.55)+' '+y1+' '+(xe-cw*.55)+' '+y2+' '+xe+' '+y2+' L'+Math.max(x2,xe)+' '+y2;
+};
+GitGraph.prototype.render=function(s,anim){
+  var self=this,o=this.o,by={};s.commits.forEach(function(c){by[c.id]=c});
+  var lw=o.padL-20;
+  this.L.sync((s.lanes||[]).map(function(l){return Object.assign({key:'L'+l.row+':'+l.n},l)}),function(it){
+    var g=S('g');S('line',{class:'gg-guide',x1:o.padL-2,y1:0,x2:self.W-8,y2:0},g);
+    S('rect',{class:'gg-pill',x:8,y:-11.5,width:lw,height:23,rx:11.5},g);T('text',{class:'gg-pilltxt',x:8+lw/2,y:4},g,it.n);return g;
+  },function(g,it,fresh){g.setAttribute('class','gg-lane k-'+it.k);g.style.transform='translate(0px,'+self.y(it.row)+'px)';if(fresh&&anim)pop(g.lastChild.previousSibling)});
+  var edges=[];
+  s.commits.forEach(function(ch){ch.p.forEach(function(pid){var pa=by[pid];if(!pa)return;
+    var k=ch.p.length>1?pa.k:ch.k,st=(ch.s==='ghost'||ch.s==='lift')?ch.s:'';
+    edges.push({key:pid+'>'+ch.id,d:self.path(pa,ch),k:k,s:st})})});
+  this.E.sync(edges,function(){return S('path')},function(p,it,fresh){
+    p.setAttribute('class','gg-edge k-'+it.k+(it.s?' s-'+it.s:''));setD(p,it.d);
+    if(fresh&&anim&&!it.s&&!reduce()){p.setAttribute('pathLength','1');p.classList.add('draw');
+      p.addEventListener('animationend',function h(){p.classList.remove('draw');p.removeAttribute('pathLength');p.removeEventListener('animationend',h)})}
+  });
+  this.N.sync(s.commits.map(function(c){return Object.assign({key:c.id},c)}),function(it){
+    var g=S('g'),i=S('g',{},g);S('circle',{class:'hl',r:15.5},i);S('circle',{class:'dot',r:9},i);S('circle',{class:'inner',r:3.3},i);T('text',{class:'lbl',y:27},i,it.id);return g;
+  },function(g,it,fresh){
+    g.setAttribute('class','gg-node k-'+it.k+(it.s?' s-'+it.s:'')+(it.p.length>1?' is-merge':''));
+    g.style.transform='translate('+self.x(it.col)+'px,'+self.y(it.row)+'px)';
+    if(fresh&&anim)pop(g.firstChild);
+  });
+  var h=headOf(s);
+  this.H.sync(h?[{key:'head',x:this.x(h.col),y:this.y(h.row),below:h.row>0}]:[],function(){
+    var g=S('g');S('circle',{class:'ring',r:14.5},g);var tg=S('g',{class:'tag'},g);S('rect',{x:-21,y:-9,width:42,height:18,rx:9},tg);T('text',{y:3.6},tg,'HEAD');return g;
+  },function(g,it,fresh){g.setAttribute('class','gg-head');g.style.transform='translate('+it.x+'px,'+it.y+'px)';g.lastChild.style.transform='translate(0px,'+(it.below?47:-30)+'px)';if(fresh&&anim)pop(g)});
+};
+
+/* ---- right panel: pointers ("стикеры") ---- */
+function Pointers(svg,scenes){
+  this.svg=svg;this.o={colW:64,rowH:88,refGap:54,headGap:46};
+  var x0=1e9,x1=-1e9,y0=1e9,y1=-1e9,self=this;
+  function box(cx,cy,hw,hh){x0=Math.min(x0,cx-hw);x1=Math.max(x1,cx+hw);y0=Math.min(y0,cy-hh);y1=Math.max(y1,cy+hh)}
+  scenes.forEach(function(s){var L=self.layout(s);
+    L.commits.forEach(function(c){box(c.x,c.y,22,15)});L.refs.forEach(function(r){box(r.x,r.y,r.w/2,12)});if(L.head)box(L.head.x,L.head.y,28,12)});
+  var m=12;svg.setAttribute('viewBox',(x0-m)+' '+(y0-m)+' '+(x1-x0+2*m)+' '+(y1-y0+2*m));
+  this.E=new Keyed(S('g',{},svg));this.N=new Keyed(S('g',{},svg));this.R=new Keyed(S('g',{},svg));this.H=new Keyed(S('g',{},svg));
+}
+Pointers.prototype.layout=function(s){
+  var o=this.o,by={};
+  var commits=s.commits.map(function(c){var q=Object.assign({},c,{x:c.col*o.colW,y:c.row*o.rowH});by[c.id]=q;return q});
+  var refs=(s.refs||[]).map(function(r){var c=by[r.at];return {n:r.n,side:r.side,x:c.x,y:c.y+(r.side==='t'?-o.refGap:o.refGap),w:Math.max(52,22+r.n.length*7.8)}});
+  var head=null;if(s.head){var r=refs.filter(function(q){return q.n===s.head})[0];if(r)head={side:r.side,x:r.x,y:r.y+(r.side==='t'?-o.headGap:o.headGap)}}
+  var edges=[];commits.forEach(function(ch){ch.p.forEach(function(pid){var pa=by[pid];if(!pa)return;
+    edges.push({key:pid+'>'+ch.id,d:'M'+(pa.x+22)+' '+pa.y+' L'+(ch.x-22)+' '+ch.y,s:(ch.s==='ghost'||ch.s==='lift')?ch.s:''})})});
+  return {commits:commits,refs:refs,head:head,edges:edges};
+};
+function arrowD(sg,from,to){return 'M0 '+(from*sg)+' L0 '+((to-1)*sg)}
+function headD(sg,to){return 'M-4.5 '+((to-8)*sg)+' L4.5 '+((to-8)*sg)+' L0 '+(to*sg)+' Z'}
+Pointers.prototype.render=function(s,anim){
+  var L=this.layout(s),o=this.o;
+  this.E.sync(L.edges,function(){return S('path')},function(p,it){p.setAttribute('class','pp-edge'+(it.s?' s-'+it.s:''));setD(p,it.d)});
+  this.N.sync(L.commits.map(function(c){return Object.assign({key:c.id},c)}),function(it){
+    var g=S('g'),i=S('g',{},g);S('rect',{class:'hlr',x:-28,y:-21,width:56,height:42,rx:11},i);S('rect',{class:'box',x:-22,y:-15,width:44,height:30,rx:8},i);T('text',{class:'bt',y:4.8},i,it.id);return g;
+  },function(g,it,fresh){g.setAttribute('class','pp-node k-'+it.k+(it.s?' s-'+it.s:''));g.style.transform='translate('+it.x+'px,'+it.y+'px)';if(fresh&&anim)pop(g.firstChild)});
+  function label(cls,gap){return function(it){var g=S('g'),i=S('g',{},g);S('path',{class:'arr'},i);S('path',{class:'ah'},i);S('rect',{class:'lab',y:-12,height:24,rx:6},i);T('text',{class:'lt',y:4.4},i,it.n);return g}}
+  function upd(cls,gap){return function(g,it,fresh){
+    g.setAttribute('class',cls);g.style.transform='translate('+it.x+'px,'+it.y+'px)';
+    var i=g.firstChild,r=i.querySelector('.lab');r.setAttribute('x',-it.w/2);r.setAttribute('width',it.w);
+    var sg=it.side==='t'?1:-1,tip=gap-2-(cls==='pp-ref'?15:12);
+    i.querySelector('.arr').setAttribute('d',arrowD(sg,12,tip));i.querySelector('.ah').setAttribute('d',headD(sg,tip));
+    if(fresh&&anim)pop(i);
+  }}
+  this.R.sync(L.refs.map(function(r){return Object.assign({key:r.n},r)}),label('pp-ref'),upd('pp-ref',o.refGap));
+  this.H.sync(L.head?[Object.assign({key:'HEAD',n:'HEAD',w:56},L.head)]:[],label('pp-head'),upd('pp-head',o.headGap));
+};
+
+/* ---- scene data ---- */
+var A3=[cm('A',0,0),cm('B',1,0,['A']),cm('C',2,0,['B'])];
+var D0=cm('D',3,0,['C']);
+var fork=A3.concat([D0,cm('E',3,1,['C'],'f'),cm('F',4,1,['E'],'f')]);
+var laneMB=[ln(0,'main'),ln(1,'bugfix','f')];
+var afterRebase=A3.concat([D0,cm('E′',4,0,['D'],'f'),cm('F′',5,0,['E′'],'f')]);
+var FIGS={
+  basics:{steps:[
+    {cmd:[],t:'Исходное состояние: три коммита в main. HEAD указывает на main — мы стоим в main.',commits:A3,refs:[rf('main','C','t')],head:'main',lanes:[ln(0,'main')]},
+    {cmd:['git branch bugfix'],t:'Появился стикер bugfix на том же коммите C. HEAD остался на main: git branch только создаёт ветку, но не переключает на неё. На графе слева ничего не изменилось — у bugfix пока нет своих коммитов.',commits:A3,refs:[rf('main','C','t'),rf('bugfix','C','b')],head:'main',lanes:[ln(0,'main')]},
+    {cmd:['git commit'],t:'Новый коммит D пристраивается туда, где стоит HEAD. Стикер main едет вперёд вместе с HEAD, а bugfix остаётся на C.',commits:A3.concat([D0]),refs:[rf('main','D','t'),rf('bugfix','C','b')],head:'main',lanes:[ln(0,'main')]},
+    {cmd:['git switch bugfix'],t:'HEAD переехал на bugfix. Файлы в папке стали такими, как в коммите C. Коммит D никуда не делся — он ждёт в main.',commits:A3.concat([D0]),refs:[rf('main','D','t'),rf('bugfix','C','b')],head:'bugfix',lanes:[ln(0,'main')]},
+    {cmd:['git commit'],t:'Новый коммит E пристроился к C, потому что HEAD стоял там. bugfix сдвинулась на E, main осталась на D. История разветвилась.',commits:A3.concat([D0,cm('E',3,1,['C'],'f')]),refs:[rf('main','D','t'),rf('bugfix','E','b')],head:'bugfix',lanes:laneMB}
+  ]},
+  ff:{steps:[
+    {cmd:['git switch main'],t:'До слияния: в bugfix есть новый коммит D, а в main после развилки ничего не появилось. Мы стоим в main.',commits:A3.concat([cm('D',3,1,['C'],'f')]),refs:[rf('main','C','t'),rf('bugfix','D','b')],head:'main',lanes:laneMB},
+    {cmd:['git merge bugfix'],t:'Fast-forward: Git перематывает стикер main вперёд на D. Нового коммита нет, история стала прямой.',commits:A3.concat([cm('D',3,0,['C'],'f')]),refs:[rf('main','D','t'),rf('bugfix','D','b')],head:'main',lanes:[ln(0,'main')]}
+  ]},
+  merge:{steps:[
+    {cmd:['git switch main'],t:'До слияния: main ушла вперёд на D, bugfix — на E и F. Мы стоим в main.',commits:fork,refs:[rf('main','D','t'),rf('bugfix','F','b')],head:'main',lanes:laneMB},
+    {cmd:['git merge bugfix'],t:'Git создал merge-коммит M с двумя родителями — D и F. Стикер main переехал на M, bugfix осталась на F.',commits:fork.concat([cm('M',5,0,['D','F'])]),refs:[rf('main','M','t'),rf('bugfix','F','b')],head:'main',lanes:laneMB}
+  ]},
+  rebase:{steps:[
+    {cmd:['git switch bugfix'],t:'Та же развилка, но теперь мы стоим в bugfix.',commits:fork,refs:[rf('main','D','t'),rf('bugfix','F','b')],head:'bugfix',lanes:laneMB},
+    {cmd:['git rebase main'],t:'Внутри rebase, этап 1: Git находит общего предка — коммит C — и временно откладывает твои коммиты E и F.',commits:A3.slice(0,2).concat([cm('C',2,0,['B'],'m','hl'),D0,cm('E',3,1,['C'],'f','lift'),cm('F',4,1,['E'],'f','lift')]),refs:[rf('main','D','t'),rf('bugfix','F','b')],head:'bugfix',lanes:laneMB},
+    {cmd:['git rebase main'],t:'Этап 2: Git заново применяет изменения по одному поверх D. Получаются копии E′ и F′ с новыми хешами, bugfix переезжает на F′. Старые E и F брошены.',commits:afterRebase.concat([cm('E',3,1,['C'],'f','ghost'),cm('F',4,1,['E'],'f','ghost')]),refs:[rf('main','D','t'),rf('bugfix','F′','b')],head:'bugfix',lanes:[ln(0,'main')]},
+    {cmd:['git switch main','git merge bugfix'],t:'Переходим в main и сливаем: bugfix растёт прямо из верхушки main, поэтому это fast-forward. История — одна прямая линия.',commits:afterRebase,refs:[rf('main','F′','t'),rf('bugfix','F′','b')],head:'main',lanes:[ln(0,'main')]}
+  ]},
+  compare:{labels:['Старт','После merge','После rebase + merge'],steps:[
+    {cmd:[],t:'Одна и та же развилка: main ушла вперёд на D, bugfix — на E и F.',commits:fork,refs:[rf('main','D','t'),rf('bugfix','F','b')],head:'main',lanes:laneMB},
+    {cmd:['git switch main','git merge bugfix'],t:'Merge: развилка сохранилась, появился узел M с двумя родителями. Видно, что работа шла параллельно.',commits:fork.concat([cm('M',5,0,['D','F'])]),refs:[rf('main','M','t'),rf('bugfix','F','b')],head:'main',lanes:laneMB},
+    {cmd:['git switch bugfix','git rebase main','git switch main','git merge bugfix'],t:'Rebase + merge: одна прямая линия, коммиты bugfix стали копиями E′ и F′. Выглядит так, будто работали по очереди.',commits:afterRebase,refs:[rf('main','F′','t'),rf('bugfix','F′','b')],head:'main',lanes:[ln(0,'main')]}
+  ]}
+};
+
+function icon(id){return '<svg aria-hidden="true"><use href="#'+id+'"/></svg>'}
+function buildFig(fig){
+  var def=FIGS[fig.getAttribute('data-fig')];if(!def)return;
+  var steps=def.steps,tabbed=!!def.labels;
+  fig.innerHTML=
+    '<div class="dfig-panels">'+
+      '<div class="dpanel"><div class="dpanel-h"><b><i></i>Граф веток</b><span>как в Visual Studio</span></div><div class="dpanel-body"><svg role="img"></svg></div></div>'+
+      '<div class="dpanel"><div class="dpanel-h"><b><i></i>Стикеры</b><span>куда указывают ветки и HEAD</span></div><div class="dpanel-body"><svg role="img"></svg></div></div>'+
+    '</div>'+
+    '<div class="dfig-foot">'+
+      '<div class="dsteps" role="tablist" aria-label="Шаги схемы"></div>'+
+      '<div class="dinfo"><div class="dcmd"></div><p class="dtext" aria-live="polite"></p></div>'+
+      '<div class="dnav">'+(tabbed?'':'<button class="dbtn prev" type="button" aria-label="Предыдущий шаг">'+icon('i-prev')+'</button><button class="dbtn play" type="button" aria-label="Проиграть все шаги">'+icon('i-play')+'</button><button class="dbtn next" type="button" aria-label="Следующий шаг">'+icon('i-next')+'</button>')+'</div>'+
+    '</div>';
+  var svgs=$$('svg[role=img]',fig),gg=new GitGraph(svgs[0],steps),pp=new Pointers(svgs[1],steps);
+  var stepsEl=$('.dsteps',fig),cmdEl=$('.dcmd',fig),txt=$('.dtext',fig),prev=$('.prev',fig),next=$('.next',fig),play=$('.play',fig);
+  var btns=steps.map(function(s,i){var b=document.createElement('button');b.type='button';b.className='dstep';b.setAttribute('role','tab');b.textContent=tabbed?def.labels[i]:String(i+1);if(!tabbed)b.setAttribute('aria-label','Шаг '+(i+1));b.addEventListener('click',function(){stop();go(i,true)});stepsEl.appendChild(b);return b});
+  var cur=-1,timer=null;
+  function go(i,anim){
+    if(i<0||i>=steps.length)return;cur=i;var s=steps[i];
+    gg.render(s,anim);pp.render(s,anim);
+    btns.forEach(function(b,j){b.setAttribute('aria-selected',j===i?'true':'false');b.tabIndex=j===i?0:-1});
+    cmdEl.innerHTML='';
+    if(s.cmd.length){s.cmd.forEach(function(c){var e=document.createElement('span');e.className='chip-cmd';e.innerHTML='<i>$</i>';e.appendChild(document.createTextNode(c));cmdEl.appendChild(e)})}
+    else{var e=document.createElement('span');e.className='chip-cmd empty';e.textContent=tabbed?'исходная развилка':'исходное состояние';cmdEl.appendChild(e)}
+    if(anim){txt.classList.add('swap');setTimeout(function(){txt.textContent=s.t;txt.classList.remove('swap')},140)}else txt.textContent=s.t;
+    svgs.forEach(function(v){v.setAttribute('aria-label','Шаг '+(i+1)+'. '+s.t)});
+    if(prev){prev.disabled=i===0;next.disabled=i===steps.length-1}
+  }
+  function stop(){if(timer){clearInterval(timer);timer=null;if(play){play.innerHTML=icon('i-play');play.setAttribute('aria-label','Проиграть все шаги')}}}
+  if(prev){
+    prev.addEventListener('click',function(){stop();go(cur-1,true)});
+    next.addEventListener('click',function(){stop();go(cur+1,true)});
+    play.addEventListener('click',function(){
+      if(timer){stop();return}
+      if(cur>=steps.length-1)go(0,true);
+      play.innerHTML=icon('i-pause');play.setAttribute('aria-label','Пауза');
+      timer=setInterval(function(){if(cur>=steps.length-1){stop();return}go(cur+1,true)},reduce()?1200:2100);
+    });
+  }
+  fig.addEventListener('keydown',function(e){
+    if(e.target.closest('.dsteps')&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){e.preventDefault();stop();var n=cur+(e.key==='ArrowRight'?1:-1);if(n>=0&&n<steps.length){go(n,true);btns[n].focus()}}
+  });
+  go(0,false);
+}
+$$('.dfig[data-fig]').forEach(buildFig);
+
+/* ---- word figure ---- */
+(function(){
+  var gs=$('#wordGraph');if(!gs)return;
+  var sc={commits:[cm('0',0,1),cm('А1',1,0,['0'],'f'),cm('А2',2,0,['А1'],'f'),cm('Б1',1,2,['0'],'a'),cm('Б2',2,2,['Б1'],'a'),cm('Итог',3,1,['А2','Б2'])],lanes:[ln(0,'anya','f'),ln(1,'main'),ln(2,'borya','a')]};
+  new GitGraph(gs,[sc]).render(sc,false);
+  var svg=$('#wordDocs');svg.setAttribute('viewBox','0 0 760 408');
+  function card(x,y,w,h,label,blocks,tone){
+    var g=S('g',{},svg);T('text',{class:'doc-lab'+(tone?' t-'+tone:''),x:x+2,y:y-9},g,label);
+    S('path',{class:'doc-paper',d:'M'+x+' '+y+'h'+(w-16)+'l16 16v'+(h-16)+'h'+(-w)+'z'},g);
+    S('path',{class:'doc-fold',d:'M'+(x+w-16)+' '+y+'v16h16'},g);
+    T('text',{class:'doc-title',x:x+12,y:y+24},g,'Отчёт');
+    var yy=y+36;
+    blocks.forEach(function(b){
+      if(b==='p1'||b==='p2'){T('text',{class:'doc-p',x:x+12,y:yy+11},g,b==='p1'?'Paragraph 1':'Paragraph 2');yy+=19;return}
+      var t=b.charAt(0),isNew=b.slice(-1)==='!';
+      S('rect',{class:'doc-hl hl-'+t+(isNew?' is-new':''),x:x+9,y:yy,width:w-18,height:24,rx:4},g);
+      S('line',{class:'doc-ln',x1:x+16,y1:yy+8,x2:x+w-20,y2:yy+8},g);S('line',{class:'doc-ln',x1:x+16,y1:yy+16,x2:x+w-42,y2:yy+16},g);yy+=30;
+    });
+  }
+  function arrow(d,t,tx,ty){S('path',{class:'doc-arrow '+t,d:d},svg);S('path',{class:'doc-ah '+t,d:'M'+(tx-9)+' '+(ty-5)+' L'+tx+' '+ty+' L'+(tx-9)+' '+(ty+5)+' Z'},svg)}
+  card(8,132,128,140,'Оригинал',['p1','p2']);
+  card(206,28,128,140,'Аня v1',['p1','a!','p2'],'a');
+  card(392,28,128,140,'Аня v2',['p1','a','a!','p2'],'a');
+  card(206,240,128,140,'Боря v1',['p1','p2','b!'],'b');
+  card(392,240,128,140,'Боря v2',['p1','p2','b','b!'],'b');
+  card(604,102,148,200,'Итоговый отчёт',['p1','a','a','p2','b','b']);
+  arrow('M136 202 C171 202 168 98 197 98','a',204,98);
+  arrow('M136 202 C171 202 168 310 197 310','b',204,310);
+  arrow('M334 98 L383 98','a',390,98);
+  arrow('M334 310 L383 310','b',390,310);
+  arrow('M520 98 C566 98 560 202 595 202','a',602,202);
+  arrow('M520 310 C566 310 560 202 595 202','b',602,202);
+})();
+
+/* ---- golden rule figure ---- */
+(function(){
+  var me=$('#goldMe'),them=$('#goldThem');if(!me)return;
+  var a={commits:A3.concat([D0,cm('E′',4,0,['D'],'f'),cm('F′',5,0,['E′'],'f')]),refs:[rf('bugfix','F′','t')],head:'bugfix',lanes:[ln(0,'bugfix','f')]};
+  var b={commits:A3.concat([cm('E',3,0,['C'],'f'),cm('F',4,0,['E'],'f'),cm('G',5,0,['F'],'a')]),refs:[rf('bugfix','G','t')],head:'bugfix',lanes:[ln(0,'bugfix','f')]};
+  new GitGraph(me,[a]).render(a,false);new GitGraph(them,[b]).render(b,false);
+})();
+
+/* ---- hero: live graph ---- */
+(function(){
+  var svg=$('#heroSvg');if(!svg)return;
+  var H0=[cm('A',0,0),cm('B',1,0,['A'])];
+  var scenes=[
+    {cmd:'git commit -m "Start"',commits:H0,refs:[rf('main','B')],head:'main',lanes:[ln(0,'main')]},
+    {cmd:'git switch -c feature && git commit',commits:H0.concat([cm('C',2,1,['B'],'f')]),refs:[rf('main','B'),rf('feature','C')],head:'feature',lanes:[ln(0,'main'),ln(1,'feature','f')]},
+    {cmd:'git switch main && git commit',commits:H0.concat([cm('C',2,1,['B'],'f'),cm('D',2,0,['B'])]),refs:[rf('main','D'),rf('feature','C')],head:'main',lanes:[ln(0,'main'),ln(1,'feature','f')]},
+    {cmd:'git switch feature && git commit',commits:H0.concat([cm('C',2,1,['B'],'f'),cm('D',2,0,['B']),cm('E',3,1,['C'],'f')]),refs:[rf('main','D'),rf('feature','E')],head:'feature',lanes:[ln(0,'main'),ln(1,'feature','f')]},
+    {cmd:'git switch main && git merge feature',commits:H0.concat([cm('C',2,1,['B'],'f'),cm('D',2,0,['B']),cm('E',3,1,['C'],'f'),cm('M',4,0,['D','E'])]),refs:[rf('main','M'),rf('feature','E')],head:'main',lanes:[ln(0,'main'),ln(1,'feature','f')]}
+  ];
+  var gg=new GitGraph(svg,scenes,{colW:64,rowH:72});
+  var txt=$('#heroTxt'),dots=$$('#heroDots span'),i=0,timer=null,typer=null,visible=true;
+  function show(k,anim){gg.render(scenes[k],anim);dots.forEach(function(d,j){d.classList.toggle('on',j===k)})}
+  function type(str,done){clearInterval(typer);txt.textContent='';var n=0;typer=setInterval(function(){n++;txt.textContent=str.slice(0,n);if(n>=str.length){clearInterval(typer);setTimeout(done,260)}},34)}
+  function step(){
+    if(!visible){timer=setTimeout(step,800);return}
+    i=(i+1)%scenes.length;
+    if(i===0){show(0,true)}
+    type(scenes[i].cmd,function(){if(i!==0)show(i,true);timer=setTimeout(step,i===scenes.length-1?3200:1700)});
+  }
+  if(reduce()){show(scenes.length-1,false);txt.textContent=scenes[scenes.length-1].cmd;return}
+  show(0,false);txt.textContent=scenes[0].cmd;timer=setTimeout(step,1500);
+  if('IntersectionObserver' in window){new IntersectionObserver(function(es){visible=es[0].isIntersecting}).observe(svg)}
+  document.addEventListener('visibilitychange',function(){visible=!document.hidden});
+})();
+
+/* ================= TERMINALS ================= */
+function sp(parent,cls,text){var e=document.createElement('span');if(cls)e.className=cls;e.textContent=text;parent.appendChild(e);return e}
+function colorLog(parent,line){
+  var m=line.match(/^([*|\\\/ ]*?)([0-9a-f]{7})(?: \((.*?)\))?(.*)$/);
+  if(!m){graphChars(parent,line);return}
+  graphChars(parent,m[1]);sp(parent,'t-hash',m[2]);
+  if(m[3]){sp(parent,'t-hash',' (');m[3].split(', ').forEach(function(part,idx){if(idx)sp(parent,'t-hash',', ');
+    if(part.indexOf('HEAD -> ')===0){sp(parent,'t-hd','HEAD');sp(parent,'t-hd',' -> ');sp(parent,'t-br',part.slice(8))}else sp(parent,'t-br',part)});sp(parent,'t-hash',')')}
+  sp(parent,null,m[4]);
+}
+function graphChars(parent,s){for(var i=0;i<s.length;i++){var ch=s[i];if(ch==='|'||ch==='/'||ch==='\\'){sp(parent,i<1?'t-g1':(i<3?'t-g2':'t-g3'),ch)}else sp(parent,null,ch)}}
+function outLine(parent,l){
+  if(/^[*|][*|\\\/ ]*/.test(l)&&(/[0-9a-f]{7}/.test(l)||/^[|\\\/ *]+$/.test(l))){colorLog(parent,l);return}
+  if(/^(CONFLICT|error:|Could not apply|Automatic merge failed)/.test(l)){sp(parent,'t-err',l);return}
+  if(/^hint:/.test(l)){sp(parent,'t-warn',l);return}
+  if(/^…/.test(l)){sp(parent,'t-dim',l);return}
+  if(/^\s+both modified:/.test(l)){sp(parent,'t-err',l);return}
+  sp(parent,null,l);
+}
+$$('.term').forEach(function(t){
+  var src=$('.term-src',t);if(!src)return;
+  var path=t.getAttribute('data-path')||'~/report',br=t.getAttribute('data-br');if(br===null)br='main';
+  var lines=src.textContent.replace(/^\n+/,'').replace(/\s+$/,'').split('\n');
+  var pre=document.createElement('pre');pre.className='term-body';var cmds=[],first=true;
+  lines.forEach(function(l){
+    if(l.indexOf('::path ')===0){path=l.slice(7).trim();return}
+    if(l.indexOf('::br')===0){br=l.slice(4).trim();return}
+    if(l.indexOf('$ ')===0){
+      if(!first)pre.appendChild(document.createTextNode('\n'));first=false;
+      sp(pre,'t-u','student@PC');sp(pre,null,' ');sp(pre,'t-m','MINGW64');sp(pre,null,' ');sp(pre,'t-p',path);
+      if(br){sp(pre,null,' ');sp(pre,'t-b','('+br+')')}
+      pre.appendChild(document.createTextNode('\n'));sp(pre,null,'$ ');
+      var c=l.slice(2),hi=c.search(/\s{2,}#|\s#\s/),cmd=hi>=0?c.slice(0,hi):c,com=hi>=0?c.slice(hi):'';
+      sp(pre,'t-cmd',cmd);if(com)sp(pre,'t-com',com);cmds.push(cmd.trim());
+      pre.appendChild(document.createTextNode('\n'));return;
+    }
+    outLine(pre,l);pre.appendChild(document.createTextNode('\n'));
+  });
+  if(br){pre.appendChild(document.createTextNode('\n'));sp(pre,'t-u','student@PC');sp(pre,null,' ');sp(pre,'t-m','MINGW64');sp(pre,null,' ');sp(pre,'t-p',path);sp(pre,null,' ');sp(pre,'t-b','('+br+')');pre.appendChild(document.createTextNode('\n$ '))}
+  var bar=document.createElement('div');bar.className='term-bar';
+  bar.innerHTML='<svg class="term-ico" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 15 8 8 15 1 8z" fill="#F05033"/><circle cx="8" cy="5.5" r="1.3" fill="#fff"/><circle cx="8" cy="10.5" r="1.3" fill="#fff"/><path d="M8 5.5v5" stroke="#fff" stroke-width="1.2"/></svg><span class="term-title"></span>';
+  $('.term-title',bar).textContent='MINGW64:/c/Users/student'+(path.indexOf('~/')===0?path.slice(1):'');
+  if(cmds.length){var b=document.createElement('button');b.type='button';b.className='term-copy';b.innerHTML=icon('i-copy')+'<span>'+(cmds.length>1?'Копировать команды':'Копировать')+'</span>';b.addEventListener('click',function(){copyText(cmds.join('\n'))});bar.appendChild(b)}
+  var win=document.createElement('span');win.className='term-win';win.setAttribute('aria-hidden','true');
+  win.innerHTML='<span><svg viewBox="0 0 10 10"><path d="M1 5h8" stroke="currentColor" stroke-width="1.2"/></svg></span><span><svg viewBox="0 0 10 10"><rect x="1.5" y="1.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg></span><span><svg viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.2"/></svg></span>';
+  bar.appendChild(win);
+  t.insertBefore(bar,src);src.replaceWith(pre);
+});
+
+/* ================= CONFLICT RESOLVER ================= */
+(function(){
+  var box=$('#resolver');if(!box)return;
+  var body=$('#resBody'),badge=$('#resBadge'),next=$('#resNext');
+  var rest=['Paragraph 1','Lorem ipsum (Anya)','Paragraph 2'];
+  var conflict=[['mk z-cur','<<<<<<< HEAD'],['z-cur','Final Report'],['mk z-sep','======='],['z-in','Annual Report'],['mk z-in','>>>>>>> anya-title']];
+  var picks={cur:['Final Report'],in:['Annual Report'],both:['Final Report','Annual Report'],own:['Final Annual Report']};
+  function line(n,cls,text){var d=document.createElement('div');d.className='fl'+(cls?' '+cls:'');sp(d,'n',String(n));sp(d,null,text);sp(d,null,'');return d}
+  function draw(p){
+    body.innerHTML='';var n=1;
+    if(!p){conflict.forEach(function(c){body.appendChild(line(n++,c[0],c[1]))})}
+    else picks[p].forEach(function(t){body.appendChild(line(n++,'fresh',t))});
+    rest.forEach(function(t){body.appendChild(line(n++,'',t))});
+    badge.textContent=p?'маркеров нет':'конфликт';badge.classList.toggle('ok',!!p);
+    if(p){next.innerHTML='';next.appendChild(document.createTextNode('Маркеры удалены. Осталось сказать Git, что всё готово: '));
+      var c1=document.createElement('code');c1.textContent='git add doc.txt';next.appendChild(c1);next.appendChild(document.createTextNode(', затем '));
+      var c2=document.createElement('code');c2.textContent='git commit';next.appendChild(c2);next.appendChild(document.createTextNode('.'+(p==='both'?' Два заголовка подряд — странный, но допустимый выбор: Git сохранит то, что ты оставил.':'')));}
+    else next.textContent='Выбери вариант — и увидишь, как будет выглядеть файл без маркеров.';
+  }
+  $$('.rbtn',box).forEach(function(b){b.addEventListener('click',function(){var on=b.getAttribute('aria-pressed')==='true';$$('.rbtn',box).forEach(function(x){x.setAttribute('aria-pressed','false')});if(!on)b.setAttribute('aria-pressed','true');draw(on?null:b.getAttribute('data-pick'))})});
+  draw(null);
+})();
+
+/* ================= VS: context menu ================= */
+(function(){
+  var mock=$('#vsMock');if(!mock)return;
+  var hist=$('#vsHist'),menu=$('#vsMenu'),ex=$('#vsExplain');
+  var rows=[['bugfix','f','Fix: не падать на пустом вводе','f2c91ab'],['','f','Fix: проверка пароля','7d04e3c'],['main','m','Обновить README','b18a6f0'],['','m','Форма входа','3c5e7d2'],['','m','Настроить проект','9a0b44e'],['','m','Initial commit','e41f0c9']];
+  var rh=34;
+  var svg=S('svg',{class:'vg',width:52,height:rows.length*rh,viewBox:'0 0 52 '+rows.length*rh,'aria-hidden':'true'});
+  var X0=16,X1=36,Y=function(i){return i*rh+rh/2};
+  S('path',{d:'M'+X0+' '+Y(2)+' L'+X0+' '+Y(5),fill:'none',stroke:'var(--c-main)','stroke-width':3,'stroke-linecap':'round'},svg);
+  S('path',{d:'M'+X1+' '+Y(0)+' L'+X1+' '+Y(1)+' C'+X1+' '+(Y(1)+26)+' '+X0+' '+(Y(3)-26)+' '+X0+' '+Y(3),fill:'none',stroke:'var(--c-feat)','stroke-width':3,'stroke-linecap':'round'},svg);
+  rows.forEach(function(r,i){S('circle',{cx:r[1]==='f'?X1:X0,cy:Y(i),r:6,fill:r[1]==='f'?'var(--c-feat)':'var(--c-main)',stroke:'var(--surface)','stroke-width':2.5},svg)});
+  hist.appendChild(svg);
+  rows.forEach(function(r){var d=document.createElement('div');d.className='vs-row';sp(d,null,'');var m=sp(d,'msg','');if(r[0]){var em=document.createElement('em');em.className=r[1];em.textContent=r[0];m.appendChild(em)}m.appendChild(document.createTextNode(r[2]));sp(d,'h',r[3]);hist.appendChild(d)});
+  function render(cur){
+    var other=cur==='main'?'bugfix':'main';
+    $$('.seg button',mock).forEach(function(b){b.setAttribute('aria-checked',b.getAttribute('data-cur')===cur?'true':'false')});
+    $$('.vs-br',mock).forEach(function(b){var n=b.getAttribute('data-br');b.classList.toggle('cur',n===cur);b.classList.toggle('rc',n===other)});
+    var items=[['Checkout',''],['New Local Branch From…',''],['sep'],['Merge \''+other+'\' into \''+cur+'\'',cur==='main'?'hot':'hot'],['Rebase \''+cur+'\' onto \''+other+'\'',cur==='bugfix'?'hot2':''],['sep'],['Compare with Current Branch',''],['Delete…','']];
+    menu.innerHTML='';items.forEach(function(it){var d=document.createElement('div');if(it[0]==='sep'){d.className='sep'}else{d.textContent=it[0];if(it[1])d.className=it[1]}menu.appendChild(d)});
+    var target=$('.vs-br[data-br="'+other+'"]',mock);menu.style.top=(target.offsetTop+target.offsetHeight-2)+'px';
+    ex.innerHTML='';
+    function row(code,text){var d=document.createElement('div');var c=document.createElement('code');c.textContent=code;d.appendChild(c);var p=document.createElement('p');p.textContent=text;d.appendChild(p);ex.appendChild(d)}
+    if(cur==='main'){
+      row("Merge 'bugfix' into 'main'",'«Влить bugfix в main». Изменится main — ветка, где ты стоишь. Это обычное завершение задачи: git merge bugfix.');
+      row("Rebase 'main' onto 'bugfix'",'«Пересадить main на bugfix». Тоже изменится main, но так делают редко: rebase переписал бы историю общей ветки main.');
+    }else{
+      row("Merge 'main' into 'bugfix'",'«Влить main в bugfix». Изменится bugfix: так в свою ветку подтягивают свежие изменения из main (git merge main).');
+      row("Rebase 'bugfix' onto 'main'",'«Пересадить bugfix на main». Изменится bugfix: её коммиты станут копиями поверх main (git rebase main). Подходит, пока ветка только твоя.');
+    }
+  }
+  $$('.seg button',mock).forEach(function(b){b.addEventListener('click',function(){render(b.getAttribute('data-cur'))})});
+  mock.querySelector('.seg').addEventListener('keydown',function(e){if(e.key==='ArrowRight'||e.key==='ArrowLeft'){e.preventDefault();var cur=$('.seg button[aria-checked="true"]',mock).getAttribute('data-cur');var n=cur==='main'?'bugfix':'main';render(n);$('.seg button[data-cur="'+n+'"]',mock).focus()}});
+  render('main');addEventListener('resize',function(){render($('.seg button[aria-checked="true"]',mock).getAttribute('data-cur'))});
+})();
+
+/* ================= VS: merge editor ================= */
+(function(){
+  var me=$('#meMock');if(!me)return;
+  var res=$('#meResult'),acc=$('#meAccept'),st=$('#meStatus'),boxes={in:$('input[data-pick="in"]',me),cur:$('input[data-pick="cur"]',me)};
+  var text={in:'Annual Report',cur:'Final Report'},done=false;
+  function draw(){
+    res.innerHTML='';var chosen=[];if(boxes.cur.checked)chosen.push('cur');if(boxes.in.checked)chosen.push('in');
+    if(!chosen.length){var p=document.createElement('div');p.className='me-line pending';p.textContent='⟨конфликт не решён: выбери строку выше⟩';res.appendChild(p)}
+    chosen.forEach(function(k){var d=document.createElement('div');d.className='me-line picked';sp(d,'cb','');d.appendChild(document.createTextNode(text[k]));res.appendChild(d)});
+    ['Paragraph 1','Lorem ipsum (Anya)','Paragraph 2'].forEach(function(t){var d=document.createElement('div');d.className='me-line';sp(d,'cb','');d.appendChild(document.createTextNode(t));res.appendChild(d)});
+    acc.disabled=!chosen.length||done;
+    if(!done){st.classList.remove('ok');st.textContent=chosen.length?'Готово к сохранению. Нажми Accept Merge.':'Отметь галочкой нужную строку или нажми Take Incoming / Take Current.'}
+  }
+  function lock(v){boxes.in.disabled=v;boxes.cur.disabled=v;$$('[data-take]',me).forEach(function(b){b.disabled=v})}
+  boxes.in.addEventListener('change',draw);boxes.cur.addEventListener('change',draw);
+  $$('[data-take]',me).forEach(function(b){b.addEventListener('click',function(){var k=b.getAttribute('data-take');boxes.in.checked=k==='in';boxes.cur.checked=k==='cur';draw()})});
+  acc.addEventListener('click',function(){done=true;lock(true);acc.disabled=true;st.classList.add('ok');st.textContent='Файл отмечен как решённый — это как git add. Дальше в Git Changes: Commit Staged при merge или Continue при rebase.'});
+  $('#meReset').addEventListener('click',function(){done=false;lock(false);boxes.in.checked=false;boxes.cur.checked=false;draw()});
+  draw();
+})();
+
+/* ================= CHEATSHEET ================= */
+(function(){
+  var el=$('#cheats');if(!el)return;
+  var groups=[
+    ['Где я и куда встать',[['git status','Где я, что происходит и что делать дальше'],['git switch main','Встать в ветку main'],['git switch -c bugfix','Создать ветку bugfix и сразу встать в неё'],['git log --oneline --graph --all','Граф всех веток (или git tree, если настроил сокращение)']]],
+    ['Соединить ветки',[['git merge bugfix','Влить bugfix в текущую ветку'],['git merge bugfix --no-edit','То же, но без редактора для сообщения'],['git rebase main','Пересадить текущую ветку на верхушку main']]],
+    ['Конфликты и отмена',[['git add doc.txt','Отметить конфликт в файле решённым'],['git commit','Завершить merge после конфликта'],['git rebase --continue','Продолжить rebase после конфликта'],['git merge --abort','Отменить слияние, вернуть всё как было'],['git rebase --abort','Отменить rebase, вернуть всё как было'],['git rebase --skip','Пропустить текущий коммит при rebase (его изменения пропадут)']]],
+    ['Уборка',[['git branch -d bugfix','Удалить уже слитую ветку'],['Esc  :wq  Enter','Выйти из редактора Vim с сохранением']]]
+  ];
+  groups.forEach(function(g){
+    var h=document.createElement('div');h.className='cgroup';h.textContent=g[0];el.appendChild(h);
+    var grid=document.createElement('div');grid.className='cgrid';
+    g[1].forEach(function(c){var b=document.createElement('button');b.type='button';b.className='ccard';var code=document.createElement('code');code.textContent=c[0];b.appendChild(code);sp(b,null,c[1]);b.setAttribute('aria-label','Скопировать: '+c[0]);b.addEventListener('click',function(){copyText(c[0])});grid.appendChild(b)});
+    el.appendChild(grid);
+  });
+})();
+
+/* ================= QUIZ ================= */
+(function(){
+  var el=$('#quiz');if(!el)return;
+  var Q=[
+    ['Ты стоишь в ветке bugfix и выполняешь git merge main. Какая ветка изменится?',['bugfix','main','Обе ветки','Ни одна: появится новая ветка'],0,'Git меняет только ту ветку, где ты стоишь. main останется как была — она только источник изменений.'],
+    ['Когда слияние проходит как fast-forward?',['Когда в текущей ветке не было новых коммитов после развилки','Когда есть конфликт','Когда используешь rebase','При любом merge'],0,'Если ветку-получатель можно просто «догнать», Git перематывает её стикер вперёд. Нового коммита при этом нет.'],
+    ['Сколько родителей у merge-коммита?',['Ни одного','Один','Два','Три'],2,'Merge-коммит связывает две линии истории, поэтому у него два родителя — верхушки обеих веток.'],
+    ['В файле появились строки <<<<<<< HEAD, ======= и >>>>>>> anya. Что с ними делать?',['Оставить нужный текст, удалить маркеры, сохранить и сделать git add','Ничего: Git уберёт их сам','Удалить весь файл','Сразу выполнить git push'],0,'Это маркеры конфликта. Ты решаешь, какой текст оставить, удаляешь все три маркера и говоришь Git «готово» через git add.'],
+    ['Ты решил конфликт во время rebase и сделал git add. Что дальше?',['git commit -m "fix"','git rebase --continue','git push --force','git switch main'],1,'При rebase Git сам создаёт исправленную копию коммита, поэтому нужен git rebase --continue, а не git commit.'],
+    ['Почему после rebase у твоих коммитов новые хеши?',['У копий другой родитель, а коммит изменить нельзя — поэтому создаются новые','Rebase удаляет коммиты и пишет код заново','Хеши случайные и меняются от любой команды','Это ошибка, её нужно исправить'],0,'В коммите записан его родитель. Родитель сменился — значит, это уже другой коммит с тем же содержимым: копия E′.'],
+    ['Ты запутался посреди слияния с конфликтами. Как вернуть всё как было?',['git merge --abort','Закрыть Git Bash — слияние отменится само','Удалить файл с конфликтом','Создать новую ветку'],0,'--abort — кнопка отмены: всё вернётся к состоянию до начала слияния. Для rebase то же самое: git rebase --abort.'],
+    ['Коллеги уже работают с веткой, которую ты отправил через git push. Можно сделать ей rebase?',['Нет, для общих веток — только merge','Да, всегда','Да, если потом сделать git push --force','Да, если нет конфликтов'],0,'Золотое правило: опубликованные коммиты не перебазируют. У коллег останутся старые коммиты, и истории разойдутся.'],
+    ['В Visual Studio ты стоишь в main и делаешь правый клик по feature. Какой пункт влить feature в main?',["Merge 'feature' into 'main'","Merge 'main' into 'feature'","Rebase 'main' onto 'feature'",'Checkout'],0,"Читай пункт как предложение: «влить feature в main». Если написано Merge 'main' into 'feature' — ты стоишь не в той ветке."],
+    ['Как выглядит история после связки «rebase, затем merge»?',['Одна прямая линия','С merge-коммитом и развилкой','Две параллельные ветки навсегда','История удаляется'],0,'После rebase ветка растёт прямо из верхушки main, поэтому merge делает fast-forward без merge-коммита.']
+  ];
+  var score=0,answered=0,scoreEl=$('#qScore'),bar=$('#qBar');
+  function upd(){scoreEl.textContent=score+' / '+Q.length;bar.style.width=(answered/Q.length*100)+'%'}
+  function build(){
+    el.innerHTML='';score=0;answered=0;upd();
+    Q.forEach(function(q,qi){
+      var box=document.createElement('div');box.className='q';
+      var t=document.createElement('div');t.className='q-t';sp(t,null,String(qi+1));var tt=document.createElement('div');tt.textContent=q[0];t.appendChild(tt);box.appendChild(t);
+      var opts=document.createElement('div');opts.className='q-opts';opts.setAttribute('role','group');opts.setAttribute('aria-label','Варианты ответа на вопрос '+(qi+1));
+      var btns=q[1].map(function(o,oi){var b=document.createElement('button');b.type='button';b.className='q-opt';b.textContent=o;
+        b.addEventListener('click',function(){
+          btns.forEach(function(x,xi){x.disabled=true;if(xi===q[2])x.classList.add('right')});
+          var ok=oi===q[2];if(!ok)b.classList.add('wrong');answered++;if(ok)score++;upd();
+          var ex=document.createElement('p');ex.className='q-exp';var bb=document.createElement('b');bb.className=ok?'ok':'no';bb.textContent=ok?'Верно. ':'Не совсем. ';ex.appendChild(bb);ex.appendChild(document.createTextNode(q[3]));box.appendChild(ex);
+        });opts.appendChild(b);return b});
+      box.appendChild(opts);el.appendChild(box);
+    });
+  }
+  $('#qReset').addEventListener('click',build);build();
+})();
+
+})();
+</script>
+</body>
+</html>
